@@ -39,27 +39,43 @@ enum ModeEvent {
     LeaderDiscovered = 4
 }
 
-function transitionMode(currentState: NodeMode, event: ModeEvent): NodeMode {
-    switch (currentState) {
-        case NodeMode.Uninitialized:
-            switch (event) {
-                case ModeEvent.Startup: return NodeMode.Follower
-            }
-        case NodeMode.Follower:
-            switch (event) {
-                case ModeEvent.Timeout: return NodeMode.Candidate
-            }
-        case NodeMode.Candidate:
-            switch (event) {
-                case ModeEvent.Timeout: return NodeMode.Candidate
-                case ModeEvent.LeaderDiscovered: return NodeMode.Follower
-                case ModeEvent.MajorityReceived: return NodeMode.Leader
-            }
-        case NodeMode.Leader:
-            switch (event) {
-                case ModeEvent.LeaderDiscovered: return NodeMode.Follower
-            }
-    }
+// function transitionMode(currentState: NodeMode, event: ModeEvent): NodeMode {
+//     switch (currentState) {
+//         case NodeMode.Uninitialized:
+//             switch (event) {
+//                 case ModeEvent.Startup: return NodeMode.Follower
+//             }
+//         case NodeMode.Follower:
+//             switch (event) {
+//                 case ModeEvent.Timeout: return NodeMode.Candidate
+//             }
+//         case NodeMode.Candidate:
+//             switch (event) {
+//                 case ModeEvent.Timeout: return NodeMode.Candidate
+//                 case ModeEvent.LeaderDiscovered: return NodeMode.Follower
+//                 case ModeEvent.MajorityReceived: return NodeMode.Leader
+//             }
+//         case NodeMode.Leader:
+//             switch (event) {
+//                 case ModeEvent.LeaderDiscovered: return NodeMode.Follower
+//             }
+//     }
 
-    throw new Error("raftNode: Invalid State Transition")
+//     throw new Error("raftNode: Invalid State Transition")
+// }
+
+
+type BaseRaftNode<T> = {
+    persistentState: TRaftNodeStatePersistent<T>,
+    volatileState: TRaftNodeStateVolatile,
+    mode: NodeMode
 }
+
+export type FollowerNode<T> = BaseRaftNode<T> & { mode: NodeMode.Follower }
+export type CandidateNode<T> = BaseRaftNode<T> & { mode: NodeMode.Candidate }
+export type LeaderNode<T> = BaseRaftNode<T> & {
+    mode: NodeMode.Leader,
+    leaderStateVolatile: TRaftLeaderStateVolatile
+}
+
+export type RaftNode<T> = FollowerNode<T> | CandidateNode<T> | LeaderNode<T>;
