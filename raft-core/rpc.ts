@@ -50,12 +50,97 @@ function rpcDecode<T>(
         return Result.failedResult(null);
     }
 }
-function sendRpc() {}
-function receiveRpc() {}
-
 
 function invokeAppendEntries() {}
 function receiveAppendEntries() {}
 
 function invokeRequestVote() {}
 function receiveRequestVote() {}
+
+
+
+// Sketches below
+
+const rpcPool: any = {};
+
+type TRpcChannel = {
+    remoteAddress: string | null,
+    remoteInterface: any,
+
+    localAddress: string
+    localInterface: any
+}
+
+
+// wip
+function sendRpc<T>(
+    sendingChannel: TRpcChannel,
+    method: string, // Todo, improve type safety
+    args: any[]     // todo, improve type safety
+) {
+    const remote = rpcPool[sendingChannel.remoteAddress as string];
+    if (remote) {
+        return new Promise((res, rej) => {
+            try {
+                const remoteResult = remote.localInterface[method].apply(null, args);
+                res(Result.okResult(remoteResult))
+            } catch (e) {
+                res(Result.failedResult(null))
+            }
+        })
+    }
+    else {
+        return new Promise((res) => res(Result.failedResult(null)));
+    }
+}
+
+function connect(a: TRpcChannel, b: TRpcChannel) {
+    a.remoteAddress = b.localAddress;
+    b.remoteAddress = a.localAddress;
+
+    a.remoteInterface = b.localInterface;
+    b.remoteInterface = a.localInterface;
+}
+
+function register(a: TRpcChannel) {
+    rpcPool[a.localAddress] = a;
+}
+
+async function main() {
+    const clientA = {
+        localAddress: 'A',
+        localInterface: {
+            hello (x: string) {
+                console.log(`A: hello, ${x}`)
+                return true;
+            }
+        },
+        remoteAddress: null,
+        remoteInterface: null
+    }
+
+    const clientB = {
+        localAddress: 'B',
+        localInterface: {
+            hello (x: string) {
+                console.log(`B: hello, ${x}`)
+                return true;
+            }
+        },
+        remoteAddress: null,
+        remoteInterface: null
+    }
+
+    register(clientA);
+    register(clientB);
+    connect(clientA, clientB);
+
+
+    const response = await sendRpc(clientA, 'hello', ['fromA']);
+    console.log('Response: ', response);
+}
+
+if (require.main === module) {
+    main();
+}
+
