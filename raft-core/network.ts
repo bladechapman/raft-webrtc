@@ -1,4 +1,5 @@
 import { RaftNode } from "./raftNode";
+import { rpcBroadcast } from './rpc';
 
 // type TTermWin = { type: "win", winningTerm: number };
 // type TTermLoss = { type: "lose", winningTerm: number };
@@ -29,7 +30,7 @@ import { RaftNode } from "./raftNode";
 // }
 
 
-function broadcastRequestVoteRpc(node: any, rpcGroup: any[], rpcSend: any) {
+export function broadcastRequestVoteRpc(node: any) {
     const {
         currentTerm,
         id,
@@ -43,13 +44,8 @@ function broadcastRequestVoteRpc(node: any, rpcGroup: any[], rpcSend: any) {
         lastLogTerm: log[log.length - 1].termReceived
     }
 
-    const groupSize = rpcGroup.length;
-
-    return Promise.all(
-        rpcGroup.map(
-            groupMember => rpcSend(groupMember, "receiveRequestVote", [payload])
-        )
-    ).then(results => {
+    return rpcBroadcast(id, "receiveRequestVote", [payload]).then((results: any[]) => {
+        const groupSize = results.length;
         const grantedCount = results.filter(result => result.ok && result.data.voteGranted).length;
         const majorityReceived = grantedCount > groupSize / 2;
 
@@ -58,7 +54,7 @@ function broadcastRequestVoteRpc(node: any, rpcGroup: any[], rpcSend: any) {
 }
 
 
-function receiveRequestVoteRpc(node: any, payload: any) {
+export function receiveRequestVoteRpc(node: any, payload: any) {
     const {
         currentTerm,
         votedFor,

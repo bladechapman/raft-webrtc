@@ -1,7 +1,13 @@
 // import { FollowerNode, BaseRaftNode } from './raftNode';
+import { rpcRegister } from './rpc';
 
 function useNode() {
     let node: any = {};
+    const rpcId = rpcRegister({
+        'receiveRequestVote': () => {},
+        'receiveAppendEntries': () => {}
+    });
+    node.id = rpcId;
 
     function setNode(newNode: any) {
         node = newNode;
@@ -13,13 +19,6 @@ function useNode() {
     }
 
     return [getNode, setNode];
-}
-
-
-function registerRpc(id) {
-    function requestVote(node) {}
-    function sendHearbeat(node) {}
-    return [requestVote, sendHearbeat];
 }
 
 
@@ -85,6 +84,6 @@ function step(
     }
 }
 
-function candidateFrom(node) { return {}; }
-function followerFrom(node) { return {}; }
-function leaderFrom(node) { return {}; }
+function candidateFrom(node) { return node; }
+function followerFrom(node) { return node; }
+function leaderFrom(node) { return node; }

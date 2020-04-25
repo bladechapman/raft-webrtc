@@ -186,6 +186,14 @@ function rpcInvoke(invokerId, receiverId, method, args) {
     return responsePromise;
 }
 
+export function rpcBroadcast(invokerId, method, args) {
+    return Promise.all(
+        Object.values(rpcGroup).map(rpcMember => 
+            rpcInvoke(invokerId, rpcMember.memberId, method, args)
+        )
+    );
+}
+
 async function rpcReceive(receiverId, senderPayload) {
     const isInvocation = senderPayload.__invoke === true;
     if (isInvocation) await rpcRespond(receiverId, senderPayload);
@@ -232,7 +240,7 @@ function rpcHandleResponse(responsePayload) {
 }
 
 
-function rpcRegister(delegate) {
+export function rpcRegister(delegate) {
     const id = Math.random().toString();
     rpcGroup[id] = {
         memberId: id,
