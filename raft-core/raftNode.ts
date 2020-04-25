@@ -8,7 +8,8 @@ export type RaftNodeId = number;
 type TRaftNodeStatePersistent<T> = {
     currentTerm: number,
     votedFor: RaftNodeId | null,
-    log: TLogEntry<T>
+    log: TLogEntry<T>,
+    id: number
 }
 
 type TRaftNodeStateVolatile = {
