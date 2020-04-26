@@ -82,3 +82,9 @@ export function receiveRequestVoteRpc(node: any, payload: any) {
         voteGranted
     }
 }
+
+
+export function broadcastAppendEntriesRpc() {}
+export function receiveAppendEntriesRpc(node: any, payload: any) {
+
+}
