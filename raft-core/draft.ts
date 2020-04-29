@@ -20,14 +20,6 @@ function useNode() {
         }
     };
 
-    const rpcId = rpcRegister({
-        'receiveRequestVote': (payload) => {
-            return receiveRequestVoteRpc(node, payload);
-        },
-        'receiveAppendEntries': (payload) => {}
-    });
-    node.persistentState.id = rpcId;
-
     function setNode(newNode: any) {
         node = newNode;
         return node;
@@ -36,6 +28,14 @@ function useNode() {
     function getNode() {
         return node
     }
+
+    const rpcId = rpcRegister({
+        'receiveRequestVote': (payload) => {
+            return receiveRequestVoteRpc(node, payload);
+        },
+        'receiveAppendEntries': (payload) => {}
+    });
+    node.persistentState.id = rpcId;
 
     return [getNode, setNode];
 }

@@ -1,33 +1,6 @@
-import { RaftNode } from "./raftNode";
-import { rpcBroadcast } from './rpc';
-
-// type TTermWin = { type: "win", winningTerm: number };
-// type TTermLoss = { type: "lose", winningTerm: number };
-// type TTermDraw = { type: "draw", winningTerm: number };
-// type TTermResult = TTermWin | TTermLoss | TTermDraw;
-
-// function compareTerms(a: RaftNode<any>, b: RaftNode<any>): [TTermResult, TTermResult] {
-//     const aTerm = a.persistentState.currentTerm;
-//     const bTerm = b.persistentState.currentTerm;
-
-//     return (
-//         aTerm > bTerm ?
-//             [
-//                 { winningTerm: aTerm } as TTermWin,
-//                 { winningTerm: aTerm } as TTermLoss,
-//             ] :
-//         aTerm < bTerm ?
-//             [
-//                 { winningTerm: bTerm } as TTermLoss,
-//                 { winningTerm: bTerm } as TTermWin,
-//             ] :
-//         [
-//             { winningTerm: aTerm } as TTermDraw,
-//             { winningTerm: bTerm } as TTermDraw,
-//         ]
-
-//     )
-// }
+import { TRaftNode, TLeaderNode, RaftNode } from "./raftNode";
+import { rpcBroadcast, rpcInvoke } from './rpc';
+import { Log } from './log';
 
 
 export function broadcastRequestVoteRpc(node: any) {
@@ -54,7 +27,7 @@ export function broadcastRequestVoteRpc(node: any) {
 }
 
 
-export function receiveRequestVoteRpc(node: any, payload: any) {
+export function receiveRequestVoteRpc(node: TRaftNode<any>, payload: any) {
     const {
         currentTerm,
         votedFor,
@@ -73,7 +46,7 @@ export function receiveRequestVoteRpc(node: any, payload: any) {
         candidateLastLogTerm > currentTerm ||
         (
             candidateLastLogTerm === currentTerm &&
-            candidateLastLogIndex > (log.length - 1)
+            candidateLastLogIndex > (Log.getLength(log) - 1)
         )
     );
 
@@ -84,7 +57,92 @@ export function receiveRequestVoteRpc(node: any, payload: any) {
 }
 
 
-export function broadcastAppendEntriesRpc() {}
-export function receiveAppendEntriesRpc(node: any, payload: any) {
+export function broadcastAppendEntriesRpc(
+    getNode: () => TLeaderNode<any>,
+    proposedEntries: any[]
+) {
+    const node = getNode();
 
+    const {
+        currentTerm: term,
+        id: leaderId,
+        log
+    } = node.persistentState;
+
+    const {
+        commitIndex: leaderCommit
+    } = node.volatileState;
+
+    const {
+        nextIndices
+    } = node.leaderStateVolatile;
+
+
+    Object.entries(nextIndices).map((followerId, followerNextIndex) => {
+        const newEntriesForFollower = Log.sliceLog(log, followerNextIndex);
+        const prevLogIndex = followerNextIndex - 1;
+        const prevLogTerm = Log.getEntryAtIndex(log, prevLogIndex).termReceived;
+
+        const payload = {
+            term,
+            leaderId,
+            prevLogIndex,
+            prevLogTerm,
+            entries: newEntriesForFollower,
+            leaderCommit
+        };
+
+        return rpcInvoke(leaderId, followerId, 'receiveAppendEntries', [payload]).then()
+        // TODO: more work to be done here... we need to figure out how to handle retries...
+    });
+}
+
+export function receiveAppendEntriesRpc(
+    getNode: () => TRaftNode<any>,
+    setNode: <T>(newNode: TRaftNode<T>) => TRaftNode<T>,
+    payload: any
+) {
+    const node = getNode();
+
+    const {
+        term: leaderTerm,
+        leaderId,
+        prevLogIndex,
+        prevLogTerm,
+        entries,
+        leaderCommit: receivedLeaderCommit
+    } = payload;
+
+    const {
+        term: receiverTerm,
+        log
+    } = node.persistentState;
+
+    const {
+        commitIndex: knownLeaderCommit
+    } = node.leaderStateVolatile;
+
+    const success = (
+        leaderTerm >= receiverTerm &&
+        Log.getEntryAtIndex(log, prevLogIndex).termReceived === prevLogTerm
+    );
+
+    if (success) {
+        const newEntries = Log.sliceLog(log, prevLogIndex + 1).concat(entries);
+        const newLog = Log.fromEntries(log, entries);
+        const newNode = RaftNode.fromLog(node, newLog);
+        setNode(newNode);
+        // setNode(setLogForNode(node, newLog));
+
+        if (receivedLeaderCommit > knownLeaderCommit) {
+            // TODO: I'm not entirely sure what this is...
+            // const newLeaderCommit = Math.min(receivedLeaderCommit, newLog[newLog.length - 1].index);
+            // setNode(setLeaderCommitForNode(node, newLeaderCommit))
+        }
+    }
+
+    return {
+        success,
+        term: receiverTerm  // Are we sure this is correct?
+    };
 }

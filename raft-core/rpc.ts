@@ -165,7 +165,7 @@ const rpcGroup: {
     }
 } = {};
 
-function rpcInvoke(invokerId, receiverId, method, args) {
+export function rpcInvoke(invokerId, receiverId, method, args) {
     const callId = Math.random();   // TODO: improve this
     const invokePayload = {
         method,

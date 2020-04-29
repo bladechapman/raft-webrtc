@@ -1,4 +1,4 @@
-import { TLogEntry } from './log';
+import { TLog } from './log';
 
 export type RaftNodeId = number;
 
@@ -8,7 +8,7 @@ export type RaftNodeId = number;
 type TRaftNodeStatePersistent<T> = {
     currentTerm: number,
     votedFor: RaftNodeId | null,
-    log: TLogEntry<T>,
+    log: TLog<T>,
     id: number
 }
 
@@ -21,13 +21,13 @@ type TRaftNodeStateVolatile = {
  * Reinitialized after election
  */
 type TRaftLeaderStateVolatile = {
-    nextIndex: Record<RaftNodeId, number | undefined>,
-    matchIndex: Record<RaftNodeId, number | undefined>
+    nextIndices: Record<RaftNodeId, number | undefined>,
+    matchIndices: Record<RaftNodeId, number | undefined>
 }
 
 
 enum NodeMode {
-    Uninitialized = 0,
+    // Uninitialized = 0,
     Follower = 1,
     Candidate = 2,
     Leader = 3
@@ -69,14 +69,31 @@ enum ModeEvent {
 type BaseRaftNode<T> = {
     persistentState: TRaftNodeStatePersistent<T>,
     volatileState: TRaftNodeStateVolatile,
+    leaderStateVolatile: TRaftLeaderStateVolatile,
     mode: NodeMode
 }
 
-export type FollowerNode<T> = BaseRaftNode<T> & { mode: NodeMode.Follower }
-export type CandidateNode<T> = BaseRaftNode<T> & { mode: NodeMode.Candidate }
-export type LeaderNode<T> = BaseRaftNode<T> & {
-    mode: NodeMode.Leader,
-    leaderStateVolatile: TRaftLeaderStateVolatile
+export type TFollowerNode<T> = BaseRaftNode<T> & { mode: NodeMode.Follower }
+export type TCandidateNode<T> = BaseRaftNode<T> & { mode: NodeMode.Candidate }
+export type TLeaderNode<T> = BaseRaftNode<T> & { mode: NodeMode.Leader }
+
+export type TRaftNode<T> = TFollowerNode<T> | TCandidateNode<T> | TLeaderNode<T>;
+
+function fromLog<T>(node: TRaftNode<T>, log: TLog<T>) {
+    const oldPersistentState = node.persistentState;
+    return {
+        ...node,
+        persistentState: {
+            ...oldPersistentState,
+            log
+        }
+    };
 }
 
-export type RaftNode<T> = FollowerNode<T> | CandidateNode<T> | LeaderNode<T>;
+// function fromLeaderCommit(node, leaderCommit) {
+    
+// }
+
+export class RaftNode {
+    static fromLog = fromLog;
+}
