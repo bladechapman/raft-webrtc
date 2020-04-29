@@ -1,6 +1,7 @@
 import { TRaftNode, TLeaderNode, RaftNode } from "./raftNode";
 import { rpcBroadcast, rpcInvoke } from './rpc';
 import { Log } from './log';
+import { Result } from './lib';
 
 
 export function broadcastRequestVoteRpc(node: any) {
@@ -92,9 +93,29 @@ export function broadcastAppendEntriesRpc(
             leaderCommit
         };
 
-        return rpcInvoke(leaderId, followerId, 'receiveAppendEntries', [payload]).then()
-        // TODO: more work to be done here... we need to figure out how to handle retries...
+        return rpcInvoke(leaderId, followerId, 'receiveAppendEntries', [payload])
+            .then(result => {
+                const currentNode = getNode();
+                // What happens if we’re not longer the leader?
+
+                if (Result.isOk(result)) {
+
+                }
+                else {
+                    // TODO: more work to be done here... we need to figure out how to handle retries...
+
+                }
+            });
     });
+}
+
+export function sendAppendEntries(
+    followerId,
+    getNode,
+    proposedEntries
+) {
+    // Should be recursive to handle rebroadcast
+    // Wrapper function will abstract broadcasting
 }
 
 export function receiveAppendEntriesRpc(
