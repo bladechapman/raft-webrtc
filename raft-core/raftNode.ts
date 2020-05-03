@@ -113,9 +113,21 @@ function fromNextIndices(node, nextIndices) {
     };
 }
 
+function fromMatchIndices(node, matchIndices) {
+    const oldLeaderStateVolatile = node.leaderStateVolatile;
+    return {
+        ...node,
+        leaderStateVolatile: {
+            ...oldLeaderStateVolatile,
+            matchIndices
+        }
+    };
+}
+
 
 export class RaftNode {
     static fromLog = fromLog;
     static fromCommitIndex = fromCommitIndex;
     static fromNextIndices = fromNextIndices;
+    static fromMatchIndices = fromMatchIndices
 }

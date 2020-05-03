@@ -1,7 +1,7 @@
 import { TRaftNode, TLeaderNode, RaftNode } from "./raftNode";
 import { rpcBroadcast, rpcInvoke } from './rpc';
 import { Log } from './log';
-import { Result, TResult, RaftPromise } from './lib';
+import { Result, TResult, RaftPromise, debug } from './lib';
 
 
 export function broadcastRequestVoteRpc(node: any) {
@@ -61,14 +61,17 @@ export function receiveRequestVoteRpc(node: TRaftNode<any>, payload: any) {
 export function broadcastAppendEntriesRpc(
     getNode: () => TLeaderNode<any>,
     setNode: <T>(newNode: TRaftNode<T>) => TRaftNode<T>,
-    proposedEntries: any[]
+    proposedCommands: any[]
 ) {
     const node = getNode();
     const { nextIndices } = node.leaderStateVolatile;
-    const promises = Object.keys(nextIndices).map(followerId => {
-        return sendAppendEntries(followerId, getNode, setNode, proposedEntries);
-    });
 
+    // TODO: I need to append the new commands to the leader log
+    // and reconcile how the follower proposed entries are constructed
+
+    const promises = Object.keys(nextIndices).map(followerId => {
+        return sendAppendEntries(followerId, getNode, setNode, proposedCommands);
+    });
     RaftPromise.majority(promises).then(v => {
         // TODO: We might need to be careful here. What happens
         // If the node is no longer the leader? We can probably do this by checking the term number
@@ -78,14 +81,15 @@ export function broadcastAppendEntriesRpc(
         // 5.3
         // A log entry is committed once the leader that created the entry has
         // replicated it on a majority of the servers.
+
     });
 }
 
-export function sendAppendEntries(
+function sendAppendEntries(
     followerId,
     getNode,
     setNode,
-    proposedEntries
+    proposedCommands
 ) {
     const node = getNode();
 
@@ -104,7 +108,10 @@ export function sendAppendEntries(
     } = node.leaderStateVolatile;
 
     const followerNextIndex = nextIndices[followerId];
-    const newEntriesForFollower = Log.sliceLog(log, followerNextIndex);
+    const newEntriesForFollower = Log.sliceLog(
+        Log.withCommands(log, term, proposedCommands),
+        followerNextIndex
+    );
     const prevLogIndex = followerNextIndex - 1;
     const prevLogTerm = Log.getEntryAtIndex(log, prevLogIndex).termReceived;
 
@@ -129,6 +136,18 @@ export function sendAppendEntries(
                 const { success, term } = data;
                 if (success) {
                     // The log entry has been replicated on the follower.
+                    // Update the match index for this node.
+                    const matchIndices = currentNode.leaderStateVolatile.matchIndices;
+                    const newMatchIndex = newEntriesForFollower[newEntriesForFollower.length - 1].index;
+                    const newNode = RaftNode.fromMatchIndices(
+                        currentNode,
+                        {
+                            ...matchIndices,
+                            [followerId]: newMatchIndex
+                        }
+                    );
+                    setNode(newNode);
+
                     return data;
                 }
                 else {
@@ -138,6 +157,12 @@ export function sendAppendEntries(
                     const nextIndices = currentNode.leaderStateVolatile.nextIndices;
                     const nextIndex = nextIndices[followerId];
                     const newNextIndex = nextIndex - 1;
+
+                    debug(
+                        () => newNextIndex < 0,
+                        "Next index < 0"
+                    );
+
                     setNode(
                         RaftNode.fromNextIndices(
                             currentNode,
@@ -147,14 +172,14 @@ export function sendAppendEntries(
                             }
                         )
                     );
-                    return sendAppendEntries(followerId, getNode, setNode, proposedEntries);
+                    return sendAppendEntries(followerId, getNode, setNode, proposedCommands);
                 }
             }
             else {
                 // 5.3 
                 // If followers crash or run slowly, or if network packets are lost,
                 // the leader retries AppendEntries RPCs indefinitely.
-                return sendAppendEntries(followerId, getNode, setNode, proposedEntries);
+                return sendAppendEntries(followerId, getNode, setNode, proposedCommands);
             }
         });
 }

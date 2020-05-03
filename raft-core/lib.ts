@@ -49,3 +49,10 @@ export class RaftPromise<T> extends Promise<T> {
     }
 
 }
+
+const isDebug = true;
+export function debug(condition, message) {
+    if (isDebug && condition()) {
+        throw new Error(message);
+    }
+}

@@ -39,7 +39,7 @@ function getLog() {
 
 function sliceLog<T>(
     log: TLog<T>,
-    fromIndex = 0,
+    fromIndex?: number,
     toIndex?: number
 ): TLogEntry<T>[] {
     const { entries } = log;
@@ -54,9 +54,31 @@ function getEntryAtIndex<T>(
     return entries.find(entry => entry.index === index);
 }
 
+function getLastEntry<T>(
+    log: TLog<T>,
+) {
+    const length = log.entries.length;
+    return Log.getEntryAtIndex(log, length - 1);
+}
+
 function getLength(log: TLog<any>): number {
     const { entries } = log;
     return entries.length === 0 ? 0 : entries[entries.length - 1].index;
+}
+
+function withCommands<T>(log, term: number, commands: T[]) {
+    const lastEntry = Log.getLastEntry(log);
+    const lastIndex = !!lastEntry ? lastEntry.index : -1;
+
+    const newEntries = commands.map((command, i) => {
+        return {
+            termReceived: term,
+            command,
+            index: lastIndex + i + 1
+        };
+    });
+
+    return Log.fromEntries(log, log.entries.concat(newEntries));
 }
 
 export class Log {
@@ -67,5 +89,8 @@ export class Log {
 
     static sliceLog = sliceLog
     static getEntryAtIndex = getEntryAtIndex
+    static getLastEntry = getLastEntry
+
+    static withCommands = withCommands
 }
 
