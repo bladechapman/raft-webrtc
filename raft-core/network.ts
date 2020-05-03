@@ -1,7 +1,7 @@
 import { TRaftNode, TLeaderNode, RaftNode } from "./raftNode";
 import { rpcBroadcast, rpcInvoke } from './rpc';
 import { Log } from './log';
-import { Result } from './lib';
+import { Result, TResult, RaftPromise } from './lib';
 
 
 export function broadcastRequestVoteRpc(node: any) {
@@ -60,7 +60,32 @@ export function receiveRequestVoteRpc(node: TRaftNode<any>, payload: any) {
 
 export function broadcastAppendEntriesRpc(
     getNode: () => TLeaderNode<any>,
+    setNode: <T>(newNode: TRaftNode<T>) => TRaftNode<T>,
     proposedEntries: any[]
+) {
+    const node = getNode();
+    const { nextIndices } = node.leaderStateVolatile;
+    const promises = Object.keys(nextIndices).map(followerId => {
+        return sendAppendEntries(followerId, getNode, setNode, proposedEntries);
+    });
+
+    RaftPromise.majority(promises).then(v => {
+        // TODO: We might need to be careful here. What happens
+        // If the node is no longer the leader? We can probably do this by checking the term number
+        //
+        // DANGER: We may need to check the commit index, match index, and term here...
+
+        // 5.3
+        // A log entry is committed once the leader that created the entry has
+        // replicated it on a majority of the servers.
+    });
+}
+
+export function sendAppendEntries(
+    followerId,
+    getNode,
+    setNode,
+    proposedEntries
 ) {
     const node = getNode();
 
@@ -78,44 +103,60 @@ export function broadcastAppendEntriesRpc(
         nextIndices
     } = node.leaderStateVolatile;
 
+    const followerNextIndex = nextIndices[followerId];
+    const newEntriesForFollower = Log.sliceLog(log, followerNextIndex);
+    const prevLogIndex = followerNextIndex - 1;
+    const prevLogTerm = Log.getEntryAtIndex(log, prevLogIndex).termReceived;
 
-    Object.entries(nextIndices).map((followerId, followerNextIndex) => {
-        const newEntriesForFollower = Log.sliceLog(log, followerNextIndex);
-        const prevLogIndex = followerNextIndex - 1;
-        const prevLogTerm = Log.getEntryAtIndex(log, prevLogIndex).termReceived;
+    const payload = {
+        term,
+        leaderId,
+        prevLogIndex,
+        prevLogTerm,
+        entries: newEntriesForFollower,
+        leaderCommit
+    };
 
-        const payload = {
-            term,
-            leaderId,
-            prevLogIndex,
-            prevLogTerm,
-            entries: newEntriesForFollower,
-            leaderCommit
-        };
+    return rpcInvoke(leaderId, followerId, 'receiveAppendEntries', [payload])
+        .then((result: TResult<any, any>) => {
+            const currentNode = getNode();
 
-        return rpcInvoke(leaderId, followerId, 'receiveAppendEntries', [payload])
-            .then(result => {
-                const currentNode = getNode();
-                // What happens if we’re not longer the leader?
+            // TODO: I guess if we’re no longer leader, just throw out the response...
+            // We’ll get back to that later, for now let’s just assume we’re still leader
 
-                if (Result.isOk(result)) {
-
+            if (Result.isOk(result)) {
+                const { data } = result;
+                const { success, term } = data;
+                if (success) {
+                    // The log entry has been replicated on the follower.
+                    return data;
                 }
                 else {
-                    // TODO: more work to be done here... we need to figure out how to handle retries...
-
+                    // 5.3
+                    // After a rejection, the leader decrements nextIndex and retries
+                    // the AppendEntries RPC
+                    const nextIndices = currentNode.leaderStateVolatile.nextIndices;
+                    const nextIndex = nextIndices[followerId];
+                    const newNextIndex = nextIndex - 1;
+                    setNode(
+                        RaftNode.fromNextIndices(
+                            currentNode,
+                            {
+                                ...nextIndices,
+                                [followerId]: newNextIndex
+                            }
+                        )
+                    );
+                    return sendAppendEntries(followerId, getNode, setNode, proposedEntries);
                 }
-            });
-    });
-}
-
-export function sendAppendEntries(
-    followerId,
-    getNode,
-    proposedEntries
-) {
-    // Should be recursive to handle rebroadcast
-    // Wrapper function will abstract broadcasting
+            }
+            else {
+                // 5.3 
+                // If followers crash or run slowly, or if network packets are lost,
+                // the leader retries AppendEntries RPCs indefinitely.
+                return sendAppendEntries(followerId, getNode, setNode, proposedEntries);
+            }
+        });
 }
 
 export function receiveAppendEntriesRpc(
@@ -135,13 +176,13 @@ export function receiveAppendEntriesRpc(
     } = payload;
 
     const {
-        term: receiverTerm,
+        currentTerm: receiverTerm,
         log
     } = node.persistentState;
 
     const {
-        commitIndex: knownLeaderCommit
-    } = node.leaderStateVolatile;
+        commitIndex
+    } = node.volatileState;
 
     const success = (
         leaderTerm >= receiverTerm &&
@@ -153,12 +194,11 @@ export function receiveAppendEntriesRpc(
         const newLog = Log.fromEntries(log, entries);
         const newNode = RaftNode.fromLog(node, newLog);
         setNode(newNode);
-        // setNode(setLogForNode(node, newLog));
 
-        if (receivedLeaderCommit > knownLeaderCommit) {
-            // TODO: I'm not entirely sure what this is...
-            // const newLeaderCommit = Math.min(receivedLeaderCommit, newLog[newLog.length - 1].index);
-            // setNode(setLeaderCommitForNode(node, newLeaderCommit))
+        if (receivedLeaderCommit > commitIndex) {
+            const lastNewEntry = newEntries[newEntries.length - 1];
+            const newCommitIndex = Math.min(receivedLeaderCommit, lastNewEntry.index);
+            setNode(RaftNode.fromCommitIndex(node, newCommitIndex));
         }
     }
 

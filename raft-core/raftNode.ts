@@ -90,10 +90,32 @@ function fromLog<T>(node: TRaftNode<T>, log: TLog<T>) {
     };
 }
 
-// function fromLeaderCommit(node, leaderCommit) {
-    
-// }
+function fromCommitIndex(node, commitIndex) {
+    const oldVolatileState = node.volatileState;
+    return {
+        ...node,
+        volatileState: {
+            ...oldVolatileState,
+            commitIndex
+        }
+    };
+}
+
+
+function fromNextIndices(node, nextIndices) {
+    const oldLeaderStateVolatile = node.leaderStateVolatile;
+    return {
+        ...node,
+        leaderStateVolatile: {
+            ...oldLeaderStateVolatile,
+            nextIndices
+        }
+    };
+}
+
 
 export class RaftNode {
     static fromLog = fromLog;
+    static fromCommitIndex = fromCommitIndex;
+    static fromNextIndices = fromNextIndices;
 }
