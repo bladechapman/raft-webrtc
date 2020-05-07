@@ -3,8 +3,8 @@ import { TLogEntry } from './log';
 import { Result, TResult } from './lib';
 
 const rpcGroup: {
-    [memberId: string]: {  
-        memberId: string,
+    [memberId: number]: {  
+        memberId: number,
         delegate: any,
         callIds: {
             [callId: string]: [any /* resolve */, any /* reject */]
@@ -33,13 +33,13 @@ export function rpcInvoke(invokerId, receiverId, method, args) {
     return responsePromise;
 }
 
-export function rpcBroadcast(invokerId, method, args) {
-    return Promise.all(
-        Object.values(rpcGroup).map(rpcMember => 
-            rpcInvoke(invokerId, rpcMember.memberId, method, args)
-        )
-    );
-}
+// export function rpcBroadcast(invokerId, method, args) {
+//     return Promise.all(
+//         Object.values(rpcGroup).map(rpcMember => 
+//             rpcInvoke(invokerId, rpcMember.memberId, method, args)
+//         )
+//     );
+// }
 
 async function rpcReceive(receiverId, senderPayload) {
     const isInvocation = senderPayload.__invoke === true;
@@ -88,14 +88,14 @@ function rpcHandleResponse(responsePayload) {
 
 
 export function rpcRegister(delegate) {
-    const id = Math.random().toString();
+    const id = Math.random();
     rpcGroup[id] = {
         memberId: id,
         delegate,
         callIds: {}
     }
 
-    return id;
+    return [id, rpcGroup];
 }
 
 

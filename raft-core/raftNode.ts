@@ -26,7 +26,7 @@ type TRaftLeaderStateVolatile = {
 }
 
 
-enum NodeMode {
+export enum NodeMode {
     // Uninitialized = 0,
     Follower = 1,
     Candidate = 2,
@@ -137,6 +137,17 @@ function fromVotedFor(node, newVotedFor) {
 }
 
 
+function fromCurrentTerm(node, newTerm) {
+    const oldPersistentState = node.persistentState;
+    return {
+        ...node,
+        persistentState: {
+            ...oldPersistentState,
+            currentTerm: newTerm
+        }
+    }
+}
+
 
 export class RaftNode {
     static fromLog = fromLog;
@@ -144,4 +155,5 @@ export class RaftNode {
     static fromNextIndices = fromNextIndices;
     static fromMatchIndices = fromMatchIndices;
     static fromVotedFor = fromVotedFor;
+    static fromCurrentTerm = fromCurrentTerm;
 }

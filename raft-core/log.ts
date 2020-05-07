@@ -32,8 +32,8 @@ function fromEntries<T>(log: TLog<T>, entries: TLogEntry<T>[]) {
     return fromLog({ ...log, entries });
 }
 
-function getLog() {
-    return fromLog(null);
+function getLog<T>() {
+    return fromLog<T>(null);
 }
 
 
@@ -63,10 +63,10 @@ function getLastEntry<T>(
 
 function getLength(log: TLog<any>): number {
     const { entries } = log;
-    return entries.length === 0 ? 0 : entries[entries.length - 1].index;
+    return entries.length === 0 ? 0 : entries[entries.length - 1].index + 1;
 }
 
-function withCommands<T>(log, term: number, commands: T[]) {
+function withCommands<T>(log: TLog<T>, term: number, commands: T[]) {
     const lastEntry = Log.getLastEntry(log);
     const lastIndex = !!lastEntry ? lastEntry.index : -1;
 

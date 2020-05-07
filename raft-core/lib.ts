@@ -21,23 +21,38 @@ export const Result = {
 
 export class RaftPromise<T> extends Promise<T> {
 
-    static majority<T>(promises: Promise<T>[]) {
+    static majority<T>(
+        promises: Promise<T>[]
+    ) {
         const threshold = Math.ceil(promises.length / 2);
-        return RaftPromise.threshold(threshold, promises);
+        const condition = mapping => mapping.entries.length > threshold;
+
+        return RaftPromise.threshold(condition, promises);
     }
 
-    static threshold<T>(threshold: number, promises: Promise<T>[]): Promise<Map<Promise<T>, T>> {
-        let resolutions = [];
+    static threshold<T>(
+        condition: (resolutions: Map<Promise<T>, T>) => boolean,
+        promises: Promise<T>[]
+    ): Promise<Map<Promise<T>, T>> {
+        let resolutions: [Promise<T>, T][] = [];
 
         return new Promise((res, rej) => {
-            if (promises.length === 0) res(new Map(resolutions));
+            if (promises.length === 0) {
+                res(new Map());
+            }
             else {
                 promises.forEach(promise => {
                     promise
                         .then(v => {
                             resolutions.push([promise, v]);
-                            if (resolutions.length >= threshold) {
-                                res(new Map(resolutions))
+                            const candidateFinal = new Map(resolutions);
+
+                            if (condition(candidateFinal)) {
+                                res(candidateFinal)
+                            }
+                            else if (resolutions.length === promises.length) {
+                                // Nothing more can be done to satisfy the condition.
+                                rej(candidateFinal)
                             }
                         })
                         .catch((e) => {

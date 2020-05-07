@@ -1,12 +1,12 @@
 import { TRaftNode, TLeaderNode, RaftNode } from "./raftNode";
-import { rpcBroadcast, rpcInvoke } from './rpc';
+import { rpcInvoke } from './rpc';
 import { Log } from './log';
 import { Result, TResult, RaftPromise, debug } from './lib';
 
 
-export function broadcastRequestVoteRpc(
-    getNode: () => TRaftNode<any>,
-    setNode: <T>(newNode: TRaftNode<T>) => TRaftNode<T>,
+export function broadcastRequestVoteRpc<T>(
+    getNode: () => TRaftNode<T>,
+    setNode: (newNode: TRaftNode<T>) => TRaftNode<T>,
 ) {
     const node = getNode();
 
@@ -19,23 +19,33 @@ export function broadcastRequestVoteRpc(
     const payload = {
         term: currentTerm,  // does this need to be incremented at this point?
         candidateId: id,
-        lastLogIndex: Log.getLength(log) - 1,
+        lastLogIndex: Log.getLastEntry(log).index,
         lastLogTerm: Log.getLastEntry(log).termReceived
     }
 
-    return rpcBroadcast(id, "receiveRequestVote", [payload]).then((results: any[]) => {
-        const groupSize = results.length;
-        const grantedCount = results.filter(result => result.ok && result.data.voteGranted).length;
-        const majorityReceived = grantedCount > groupSize / 2;
-
-        return majorityReceived;
+    const group = Object.keys(node.leaderStateVolatile.nextIndices);
+    const promises = group.map(peerId => {
+        return rpcInvoke(id, peerId, "receiveRequestVote", [payload]);
     });
+
+    const condition = (mapping) => {
+        const results = Array.from(mapping.values()) as any[];
+        const grantedCount = results.filter(result => result.voteGranted).length;
+        return (grantedCount + 1) > Math.floor(group.length / 2);
+    };
+
+    return RaftPromise.threshold(
+        condition,
+        promises
+    )
+        .then(() => true)
+        .catch(() => false)
 }
 
 
-export function receiveRequestVoteRpc(
-    getNode: () => TRaftNode<any>,
-    setNode: <T>(newNode: TRaftNode<T>) => TRaftNode<T>,
+export function receiveRequestVoteRpc<T>(
+    getNode: () => TRaftNode<T>,
+    setNode: (newNode: TRaftNode<T>) => TRaftNode<T>,
     payload: any
 ) {
     const node = getNode();
@@ -52,18 +62,22 @@ export function receiveRequestVoteRpc(
     } = payload;
 
     const greaterTerm = currentTerm > proposedTerm ? currentTerm : proposedTerm;
+
     const voteGranted = (
         (votedFor === null || votedFor === candidateId) &&
         candidateLastLogTerm > currentTerm ||
         (
             candidateLastLogTerm === currentTerm &&
-            candidateLastLogIndex > (Log.getLength(log) - 1)
+            candidateLastLogIndex >= Log.getLastEntry(log).index
         )
     );
 
     if (voteGranted) {
         setNode(RaftNode.fromVotedFor(node, candidateId));
+        setNode(RaftNode.fromCurrentTerm(node, greaterTerm));
     }
+
+    console.log(node.persistentState.id, candidateLastLogTerm, currentTerm);
 
     return {
         term: greaterTerm,
