@@ -125,9 +125,23 @@ function fromMatchIndices(node, matchIndices) {
 }
 
 
+function fromVotedFor(node, newVotedFor) {
+    const oldPersistentState = node.persistentState;
+    return {
+        ...node,
+        persistentState: {
+            ...oldPersistentState,
+            votedFor: newVotedFor
+        }
+    }
+}
+
+
+
 export class RaftNode {
     static fromLog = fromLog;
     static fromCommitIndex = fromCommitIndex;
     static fromNextIndices = fromNextIndices;
-    static fromMatchIndices = fromMatchIndices
+    static fromMatchIndices = fromMatchIndices;
+    static fromVotedFor = fromVotedFor;
 }

@@ -4,7 +4,12 @@ import { Log } from './log';
 import { Result, TResult, RaftPromise, debug } from './lib';
 
 
-export function broadcastRequestVoteRpc(node: any) {
+export function broadcastRequestVoteRpc(
+    getNode: () => TRaftNode<any>,
+    setNode: <T>(newNode: TRaftNode<T>) => TRaftNode<T>,
+) {
+    const node = getNode();
+
     const {
         currentTerm,
         id,
@@ -14,8 +19,8 @@ export function broadcastRequestVoteRpc(node: any) {
     const payload = {
         term: currentTerm,  // does this need to be incremented at this point?
         candidateId: id,
-        lastLogIndex: log.length - 1,
-        lastLogTerm: log[log.length - 1].termReceived
+        lastLogIndex: Log.getLength(log) - 1,
+        lastLogTerm: Log.getLastEntry(log).termReceived
     }
 
     return rpcBroadcast(id, "receiveRequestVote", [payload]).then((results: any[]) => {
@@ -28,7 +33,12 @@ export function broadcastRequestVoteRpc(node: any) {
 }
 
 
-export function receiveRequestVoteRpc(node: TRaftNode<any>, payload: any) {
+export function receiveRequestVoteRpc(
+    getNode: () => TRaftNode<any>,
+    setNode: <T>(newNode: TRaftNode<T>) => TRaftNode<T>,
+    payload: any
+) {
+    const node = getNode();
     const {
         currentTerm,
         votedFor,
@@ -51,6 +61,10 @@ export function receiveRequestVoteRpc(node: TRaftNode<any>, payload: any) {
         )
     );
 
+    if (voteGranted) {
+        setNode(RaftNode.fromVotedFor(node, candidateId));
+    }
+
     return {
         term: greaterTerm,
         voteGranted
@@ -65,9 +79,15 @@ export function broadcastAppendEntriesRpc(
 ) {
     const node = getNode();
     const { nextIndices } = node.leaderStateVolatile;
+    const {
+        log: leaderLog,
+        currentTerm
+    } = node.persistentState;
 
-    // TODO: I need to append the new commands to the leader log
-    // and reconcile how the follower proposed entries are constructed
+    // Include the new entries in the leader’s log
+    const newLeaderLog = Log.withCommands(leaderLog, currentTerm, proposedCommands)
+    const newNode = RaftNode.fromLog(node, newLeaderLog);
+    setNode(newNode);
 
     const promises = Object.keys(nextIndices).map(followerId => {
         return sendAppendEntries(followerId, getNode, setNode, proposedCommands);
@@ -96,7 +116,7 @@ function sendAppendEntries(
     const {
         currentTerm: term,
         id: leaderId,
-        log
+        log: leaderLog
     } = node.persistentState;
 
     const {
@@ -108,12 +128,14 @@ function sendAppendEntries(
     } = node.leaderStateVolatile;
 
     const followerNextIndex = nextIndices[followerId];
+
+    // At this point, the leader has already included the new entries in its log
     const newEntriesForFollower = Log.sliceLog(
-        Log.withCommands(log, term, proposedCommands),
+        leaderLog,
         followerNextIndex
     );
     const prevLogIndex = followerNextIndex - 1;
-    const prevLogTerm = Log.getEntryAtIndex(log, prevLogIndex).termReceived;
+    const prevLogTerm = Log.getEntryAtIndex(leaderLog, prevLogIndex).termReceived;
 
     const payload = {
         term,
