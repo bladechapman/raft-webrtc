@@ -9,13 +9,11 @@ type ReturnType<T> = T extends (...args: any[]) => infer U ? U : never;
 type TInvokePayload<T extends { [key: string]: Function }> = {
     method: keyof T,
     args: string,
-    invokerId: number,
     callId: number
 };
 
 type TRespondPayload = {
     result: string,
-    invokerId: number,
     callId: number,
 };
 
@@ -45,114 +43,107 @@ export function useRpc/*<T extends { [key: string]: Function }>*/()/*: [
     //     [memberId: number]: TRpcGroupMember
     // } = {};
 
-    const rpcGroup: {
-        [memberId: number]: any
-    } = {};
+//     const rpcGroup: {
+//         [memberId: number]: any
+//     } = {};
 
+    const callIds = {};
 
     function rpcRegister<T extends { [key: string]: Function }>(
+        memberId: number,
         delegate: T
-    ): [
-        number,
-        (r: number, m: keyof T, a: Parameters<T[keyof T]>) => Promise<ReturnType<T[keyof T]>>
-    ] {
-        const id = Math.random();
-        rpcGroup[id] = {
-            memberId: id,
-            delegate,
-            callIds: {}
-        }
+    ) {
+        // const member = {
+        //     memberId,
+        //     delegate
+        // };
+
+        // rpcGroup[memberId] = {
+        //     memberId,
+        //     delegate
+        // }
 
         function rpcHandleResponse(responsePayload: TRespondPayload) {
             const {
                 result,
-                invokerId,
                 callId
             } = responsePayload;
 
             // extract the result from the payload
-            const [res, rej] = rpcGroup[invokerId].callIds[callId];
-            delete rpcGroup[invokerId].callIds[callId];
+            const [res, rej] = callIds[callId];
+            delete callIds[callId];
 
             // resolve the promise with the result
             const parsedResult = JSON.parse(result) as ReturnType<T[keyof T]>;  // TODO: make this stricter
             res(parsedResult);
         }
 
-        async function rpcRespond(receiverId, senderPayload: TInvokePayload<T>) {
+        async function rpcRespond(senderPayload: TInvokePayload<T>) {
             const {
                 method,
                 args: argsString,
-                invokerId,
                 callId
             } = senderPayload;
 
             // invoke whatever method is requested
             const args = JSON.parse(argsString);
-            const result = await rpcGroup[receiverId].delegate[method].apply(null, args);
+            const result = await delegate[method].apply(null, args);
 
             const responsePayload = {
                 result: JSON.stringify(result),
-                invokerId,
                 callId,
             };
 
             // send to senderId with responsePayload
-            fakeSend(invokerId, responsePayload);
+            fakeSend(responsePayload);
         }
 
         async function rpcReceive(
-            receiverId: number,
             senderPayload: TInvokePayload<T> | TRespondPayload
         ) {
             
-            if (isInvokePayload(senderPayload)) await rpcRespond(receiverId, senderPayload);
+            if (isInvokePayload(senderPayload)) await rpcRespond(senderPayload);
             else rpcHandleResponse(senderPayload);
         }
 
         function rpcInvoke(
-            receiverId: number,
             method: keyof T,
-            // args: Parameters<T[keyof T]>
+            args: Parameters<T[keyof T]>
         ) {
-            const fn = rpcGroup[receiverId].delegate[method]
+            const fn = delegate[method]
 
 
-        // Promise<ReturnType<T[keyof T]>> {
-        //     const callId = Math.random();   // TODO: improve this
-        //     const invokePayload: TInvokePayload<T> = {
-        //         method,
-        //         args: JSON.stringify(args),
-        //         invokerId: id,
-        //         callId,
-        //     };
+            const callId = Math.random();   // TODO: improve this
+            const invokePayload: TInvokePayload<T> = {
+                method,
+                args: JSON.stringify(args),
+                callId,
+            };
 
-        //     return new Promise((res, rej) => {
-        //         // TODO: Add timeout?
-        //         rpcGroup[id].callIds[callId] = [res, rej];
+            return new Promise((res, rej) => {
+                // TODO: Add timeout?
+                callIds[callId] = [res, rej];
 
-        //         // Send to receiverId with invokePayload
-        //         fakeSend(receiverId, invokePayload);
-        //     });
+                // Send to receiverId with invokePayload
+                fakeSend(invokePayload);
+            });
         }
 
         function fakeSend(
-            receiverId: number,
             payload: TInvokePayload<T> | TRespondPayload
         ) {
             setTimeout(() => {
-                fakeReceive(receiverId, payload);
+                fakeReceive(payload);
             }, Math.random() * 100 + 100);
         }
 
         function fakeReceive(
-            id: number,
             payload: TInvokePayload<T> | TRespondPayload
         ) {
-            rpcReceive(id, payload);
+            rpcReceive(payload);
         }
 
-        return [id, rpcInvoke];
+        return rpcInvoke;
     }
 
 
@@ -166,12 +157,12 @@ export function useRpc/*<T extends { [key: string]: Function }>*/()/*: [
 
 if (require.main === module) {
 
-    const aD = {
-        hello: (x) => { return `A says ${x}`; },
+    const bD = {
+        hello: (x) => { return `B says ${x}`; },
         add: (x: number, y: number) => { return x + y }
     }
     const rpcRegister = useRpc();
-    const [idA, aInvoke] = rpcRegister(aD);
+    const bInvoke = rpcRegister(1, bD);
 
     // const [rpcRegister, rpcInvoke] = useRpc<protocol>();
 
@@ -180,13 +171,17 @@ if (require.main === module) {
     //     add: (x, y) => { return x + y }
     // });
 
-    const bD = {
-        hello: (x) => { return `B says ${x}`; },
-        add: (x: number, y: number) => { return x + y }
+    const cD = {
+        goodbye: (x) => { return `C says ${x}`; },
+        subtract: (x: number, y: number) => { return x - y }
     }
-    const [idB, bInvoke] = rpcRegister(bD);
+    const cInvoke = rpcRegister(2, cD);
 
-    aInvoke(idB, "hello", [3, 4]).then((v) => {
-        console.log(v);
+    bInvoke("hello", [3, 4]).then((v) => {
+        console.log(v)
     });
+
+    // aInvoke(idB, "hello", [3, 4]).then((v) => {
+    //     console.log(v);
+    // });
 }

@@ -175,3 +175,24 @@ function step(
 function candidateFrom(node) { return node; }
 function followerFrom(node) { return node; }
 function leaderFrom(node) { return node; }
+
+
+
+
+/*
+ RPC API drafting
+
+
+registerRpc = useRpc(someTransport);
+
+// get notification that B wants to connect with some protocol 
+invokeB = registerRpc(B, protocolB)
+
+// get notification that C wants to connect with some protocol 
+invokeC = registerRpc(C, protocolC)
+
+
+invokeC("methodName", [arg1, arg2, arg3]).then(() => {
+    ...
+})
+ */
