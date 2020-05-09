@@ -1,6 +1,11 @@
 import { Log } from '../log';
-import { TRaftNode, NodeMode, RaftNode } from '../raftNode';
-import { broadcastRequestVoteRpc, receiveRequestVoteRpc } from '../network';
+import { TRaftNode, NodeMode, RaftNode, TLeaderNode } from '../raftNode';
+import {
+    broadcastRequestVoteRpc,
+    receiveRequestVoteRpc,
+    broadcastAppendEntriesRpc,
+    receiveAppendEntriesRpc
+} from '../network';
 import { rpcRegister } from '../rpc';
 
 function useNode(): [
@@ -46,6 +51,15 @@ function useNode(): [
                 payload
             );
         },
+
+
+        'receiveAppendEntries': (payload) => {
+            return receiveAppendEntriesRpc(
+                getNode,
+                setNode,
+                payload
+            );
+        }
     });
     node.persistentState.id = rpcId as number;
 
@@ -91,33 +105,63 @@ if (require.main === module) {
 
     console.log('==== C requests vote');
     requestVote(getC, setC).then(() => {
-        // console.log('A', getA());
-        // console.log('B', getB());
-        // console.log('C', getC());
 
-        console.log('simulate append entries')
-        setC(RaftNode.fromLog(getC(), Log.withCommands(getC().persistentState.log, getC().persistentState.currentTerm, ['noop'])));
-        setA(RaftNode.fromLog(getA(), Log.withCommands(getA().persistentState.log, getA().persistentState.currentTerm, ['noop'])));
-        setB(RaftNode.fromLog(getB(), Log.withCommands(getB().persistentState.log, getB().persistentState.currentTerm, ['noop'])));
-        getA().mode = NodeMode.Follower;
+        // Assume C became leader for now
+        const a = broadcastAppendEntriesRpc(getC as () => TLeaderNode<string>, setC, ['c-append']).then(() => {
 
-        console.log('==== A requests vote')
-        requestVote(getA, setA).then(() => {
-            console.log('A', getA().mode);
-            console.log('B', getB().mode);
-            console.log('C', getC().mode);
-        });
+
+        })
+        .catch(e => {
+            console.log(e);
+        })
+
+        // Assume C became leader for now
+        const b = broadcastAppendEntriesRpc(getC as () => TLeaderNode<string>, setC, ['c-append-2']).then(() => {
+
+//             console.log(getA());
+//             console.log(getB());
+//             console.log(getC());
+
+        })
+        .catch(e => {
+            console.log(e);
+        })
+
+
+        Promise.all([a, b]).then(() => {
+            // console.log(getA().persistentState.log.entries);
+            // console.log(getB().persistentState.log.entries);
+            // console.log(getC().persistentState.log.entries);
+
+
+            // Assume C became leader for now
+            broadcastAppendEntriesRpc(getC as () => TLeaderNode<string>, setC, ['c-append-3']).then(() => {
+
+                console.log(getA().persistentState.log.entries);
+                console.log(getB().persistentState.log.entries);
+                console.log(getC().persistentState.log.entries);
+
+            })
+            .catch(e => {
+                console.log(e);
+            })
+        })
+
+
+//         console.log('simulate append entries')
+//         setC(RaftNode.fromLog(getC(), Log.withCommands(getC().persistentState.log, getC().persistentState.currentTerm, ['noop'])));
+//         setA(RaftNode.fromLog(getA(), Log.withCommands(getA().persistentState.log, getA().persistentState.currentTerm, ['noop'])));
+//         setB(RaftNode.fromLog(getB(), Log.withCommands(getB().persistentState.log, getB().persistentState.currentTerm, ['noop'])));
+//         getA().mode = NodeMode.Follower;
+
+//         console.log('==== A requests vote')
+//         requestVote(getA, setA).then(() => {
+//             console.log('A', getA().mode);
+//             console.log('B', getB().mode);
+//             console.log('C', getC().mode);
+//         });
 
     });
-    // getC().persistentState.currentTerm += 1;
-    // broadcastRequestVoteRpc(getC, setC).then((v) => {
-    //     console.log(v)
-
-    //     // TODO: Actually handle mode changes
-    //     console.log(getA());
-    //     console.log(getB());
-    //     console.log(getC());
-    // });
 }
 
 function requestVote(getNode, setNode) {

@@ -25,7 +25,7 @@ export class RaftPromise<T> extends Promise<T> {
         promises: Promise<T>[]
     ) {
         const threshold = Math.ceil(promises.length / 2);
-        const condition = mapping => mapping.entries.length > threshold;
+        const condition = mapping => Array.from(mapping.entries()).length > threshold;
 
         return RaftPromise.threshold(condition, promises);
     }

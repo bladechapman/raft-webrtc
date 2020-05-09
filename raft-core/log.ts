@@ -54,6 +54,13 @@ function getEntryAtIndex<T>(
     return entries.find(entry => entry.index === index);
 }
 
+function hasEntryAtIndex<T>(
+    log: TLog<T>,
+    index: number
+): boolean {
+    return Boolean(getEntryAtIndex(log, index));
+}
+
 function getLastEntry<T>(
     log: TLog<T>,
 ) {
@@ -89,6 +96,7 @@ export class Log {
 
     static sliceLog = sliceLog
     static getEntryAtIndex = getEntryAtIndex
+    static hasEntryAtIndex = hasEntryAtIndex
     static getLastEntry = getLastEntry
 
     static withCommands = withCommands

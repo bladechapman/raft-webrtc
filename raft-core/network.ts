@@ -1,4 +1,4 @@
-import { TRaftNode, TLeaderNode, RaftNode } from "./raftNode";
+import { TRaftNode, TLeaderNode, RaftNode, NodeMode } from "./raftNode";
 import { rpcInvoke } from './rpc';
 import { Log } from './log';
 import { Result, TResult, RaftPromise, debug } from './lib';
@@ -73,11 +73,14 @@ export function receiveRequestVoteRpc<T>(
     );
 
     if (voteGranted) {
+        if (proposedTerm > currentTerm) {
+            node.mode = NodeMode.Follower;
+        }
+
         setNode(RaftNode.fromVotedFor(node, candidateId));
         setNode(RaftNode.fromCurrentTerm(node, greaterTerm));
     }
 
-    console.log(node.persistentState.id, candidateLastLogTerm, currentTerm);
 
     return {
         term: greaterTerm,
@@ -86,9 +89,9 @@ export function receiveRequestVoteRpc<T>(
 }
 
 
-export function broadcastAppendEntriesRpc(
-    getNode: () => TLeaderNode<any>,
-    setNode: <T>(newNode: TRaftNode<T>) => TRaftNode<T>,
+export function broadcastAppendEntriesRpc<T>(
+    getNode: () => TLeaderNode<T>,
+    setNode: (newNode: TRaftNode<T>) => TRaftNode<T>,
     proposedCommands: any[]
 ) {
     const node = getNode();
@@ -106,7 +109,8 @@ export function broadcastAppendEntriesRpc(
     const promises = Object.keys(nextIndices).map(followerId => {
         return sendAppendEntries(followerId, getNode, setNode, proposedCommands);
     });
-    RaftPromise.majority(promises).then(v => {
+
+    return RaftPromise.majority(promises).then(v => {
         // TODO: We might need to be careful here. What happens
         // If the node is no longer the leader? We can probably do this by checking the term number
         //
@@ -142,6 +146,7 @@ function sendAppendEntries(
     } = node.leaderStateVolatile;
 
     const followerNextIndex = nextIndices[followerId];
+    const candidateNextIndex = Log.getLastEntry(leaderLog).index + 1;
 
     // At this point, the leader has already included the new entries in its log
     const newEntriesForFollower = Log.sliceLog(
@@ -161,15 +166,16 @@ function sendAppendEntries(
     };
 
     return rpcInvoke(leaderId, followerId, 'receiveAppendEntries', [payload])
-        .then((result: TResult<any, any>) => {
+        .then((result: any) => {
             const currentNode = getNode();
 
             // TODO: I guess if we’re no longer leader, just throw out the response...
             // We’ll get back to that later, for now let’s just assume we’re still leader
 
-            if (Result.isOk(result)) {
-                const { data } = result;
-                const { success, term } = data;
+            // if (Result.isOk(result)) {
+                // const { data } = result;
+                // const { success, term } = data;
+                const { success, term } = result;
                 if (success) {
                     // The log entry has been replicated on the follower.
                     // Update the match index for this node.
@@ -182,16 +188,21 @@ function sendAppendEntries(
                             [followerId]: newMatchIndex
                         }
                     );
+                    newNode.leaderStateVolatile.nextIndices[followerId] = candidateNextIndex;
                     setNode(newNode);
 
-                    return data;
+                    return result;
                 }
                 else {
+
                     // 5.3
                     // After a rejection, the leader decrements nextIndex and retries
                     // the AppendEntries RPC
                     const nextIndices = currentNode.leaderStateVolatile.nextIndices;
-                    const nextIndex = nextIndices[followerId];
+                    // const nextIndex = nextIndices[followerId];
+                    const nextIndex = nextIndices[followerId] < 2
+                        ? 2
+                        : nextIndices[followerId]; // guard against going past the beginning
                     const newNextIndex = nextIndex - 1;
 
                     debug(
@@ -210,26 +221,25 @@ function sendAppendEntries(
                     );
                     return sendAppendEntries(followerId, getNode, setNode, proposedCommands);
                 }
-            }
-            else {
-                // 5.3 
-                // If followers crash or run slowly, or if network packets are lost,
-                // the leader retries AppendEntries RPCs indefinitely.
-                return sendAppendEntries(followerId, getNode, setNode, proposedCommands);
-            }
+            // }
+            // else {
+            //     // 5.3 
+            //     // If followers crash or run slowly, or if network packets are lost,
+            //     // the leader retries AppendEntries RPCs indefinitely.
+            //     return sendAppendEntries(followerId, getNode, setNode, proposedCommands);
+            // }
         });
 }
 
-export function receiveAppendEntriesRpc(
+export function receiveAppendEntriesRpc<T>(
     getNode: () => TRaftNode<any>,
-    setNode: <T>(newNode: TRaftNode<T>) => TRaftNode<T>,
+    setNode: (newNode: TRaftNode<T>) => TRaftNode<T>,
     payload: any
 ) {
     const node = getNode();
 
     const {
         term: leaderTerm,
-        leaderId,
         prevLogIndex,
         prevLogTerm,
         entries,
@@ -238,7 +248,8 @@ export function receiveAppendEntriesRpc(
 
     const {
         currentTerm: receiverTerm,
-        log
+        log,
+        id
     } = node.persistentState;
 
     const {
@@ -247,12 +258,12 @@ export function receiveAppendEntriesRpc(
 
     const success = (
         leaderTerm >= receiverTerm &&
-        Log.getEntryAtIndex(log, prevLogIndex).termReceived === prevLogTerm
+        Log.hasEntryAtIndex(log, prevLogIndex) && Log.getEntryAtIndex(log, prevLogIndex).termReceived === prevLogTerm
     );
 
     if (success) {
-        const newEntries = Log.sliceLog(log, prevLogIndex + 1).concat(entries);
-        const newLog = Log.fromEntries(log, entries);
+        const newEntries = Log.sliceLog(log, 0, prevLogIndex + 1).concat(entries);
+        const newLog = Log.fromEntries(log, newEntries);
         const newNode = RaftNode.fromLog(node, newLog);
         setNode(newNode);
 
@@ -261,6 +272,10 @@ export function receiveAppendEntriesRpc(
             const newCommitIndex = Math.min(receivedLeaderCommit, lastNewEntry.index);
             setNode(RaftNode.fromCommitIndex(node, newCommitIndex));
         }
+    }
+
+    if (leaderTerm > receiverTerm) {
+        node.mode = NodeMode.Follower
     }
 
     return {
