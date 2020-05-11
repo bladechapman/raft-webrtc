@@ -87,7 +87,7 @@ function rpcHandleResponse(responsePayload) {
 }
 
 
-export function rpcRegister(delegate) {
+export function rpcRegister(delegate): [number, any] {
     const id = Math.random();
     rpcGroup[id] = {
         memberId: id,
