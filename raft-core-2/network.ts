@@ -42,7 +42,8 @@ export function broadcastRequestVoteRpc<T>(
 export function receiveRequestVoteRpc<T>(
     getNode: () => RaftNode<T>,
     setNode: (newNode: RaftNode<T>) => RaftNode<T>,
-    payload: any
+    payload: any,
+    becomeFollowerCallback  // HACK
 ) {
     const node = getNode();
     const {
@@ -70,7 +71,8 @@ export function receiveRequestVoteRpc<T>(
 
     if (voteGranted) {
         if (proposedTerm > currentTerm) {
-            setNode(node.becomeFollower());
+            becomeFollowerCallback();
+            // setNode(node.becomeFollower());
         }
 
         setNode(node.vote(candidateId).term(greaterTerm))
@@ -87,6 +89,8 @@ export function broadcastAppendEntriesRpc<T>(
     setNode: (newNode: RaftNode<T>) => RaftNode<T>,
     proposedCommands: T[]
 ) {
+    // console.log(getNode().persistentState.id, 'broadcastAppend');
+
     const node = getNode();
     const { nextIndices } = node.leaderState;
     const {
@@ -212,8 +216,11 @@ function sendAppendEntries<T>(
 export function receiveAppendEntriesRpc<T>(
     getNode: () => RaftNode<T>,
     setNode: (newNode: RaftNode<T>) => RaftNode<T>,
-    payload: any
+    payload: any,
+    becomeFollowerCallback  // hack
 ) {
+    console.log(getNode().persistentState.id, 'receiveAppend');
+
     const node = getNode();
 
     const {
@@ -255,7 +262,8 @@ export function receiveAppendEntriesRpc<T>(
     }
 
     if (leaderTerm > receiverTerm) {
-        setNode(node.becomeFollower())
+        becomeFollowerCallback();
+        // setNode(node.becomeFollower())
     }
 
     return {

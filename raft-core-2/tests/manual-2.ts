@@ -8,11 +8,39 @@ import {
 } from '../network';
 import { rpcRegister } from '../../raft-draft/rpc';
 
+function useTimer():
+    [(callback: any) => void, () => void]
+{
+    let handle: any;
+
+    function setTimer(callback: any, timeout?: number) {
+        clearTimeout(handle);
+        const t = timeout || Math.floor(Math.random() * 500) + 2000
+        handle = setTimeout(callback, t);
+    }
+
+    function clearTimer() {
+        clearTimeout(handle);
+    }
+
+    return [setTimer, clearTimer];
+}
+
 function useNode(): [
-    () => RaftNode<string>,
-    (newNode: RaftNode<string>) => RaftNode<string>
+    [
+        () => RaftNode<string>,
+        (newNode: RaftNode<string>) => RaftNode<string>
+    ],
+    [(callback: any) => void, () => void],
+    [(callback: any) => void, () => void],
+    [(callback: any) => void, () => void]
 ] {
     function setNode(newNode: RaftNode<string>) {
+        // console.log(
+        //     newNode.persistentState.id,
+        //     newNode.persistentState.log.entries
+        // );
+
         node = newNode;
         return node;
     }
@@ -21,64 +49,63 @@ function useNode(): [
         return node;
     }
 
+
+    const [setFollowerTimer, clearFollowerTimer] = useTimer();
+    const [setCandidateTimer, clearCandidateTimer] = useTimer();
+    const [setLeaderTimer, clearLeaderTimer] = useTimer();
+
+
     const [rpcId] = rpcRegister({
         'receiveRequestVote': (payload) => {
             return receiveRequestVoteRpc(
                 getNode,
                 setNode,
-                payload
+                payload,
+                () => {
+                    becomeFollower(
+                        [getNode, setNode],
+                        [setFollowerTimer, clearFollowerTimer],
+                        [setCandidateTimer, clearCandidateTimer],
+                        [setLeaderTimer, clearLeaderTimer]
+                    )
+                }
             );
         },
 
 
         'receiveAppendEntries': (payload) => {
-            return receiveAppendEntriesRpc(
+            const r = receiveAppendEntriesRpc(
                 getNode,
                 setNode,
-                payload
+                payload,
+                () => {
+                    becomeFollower(
+                        [getNode, setNode],
+                        [setFollowerTimer, clearFollowerTimer],
+                        [setCandidateTimer, clearCandidateTimer],
+                        [setLeaderTimer, clearLeaderTimer]
+                    )
+                }
             );
+
+            // console.log(
+            //     getNode().persistentState.id,
+            //     getNode().persistentState.currentTerm,
+            //     getNode().persistentState.log.entries
+            // )
+
+            return r;
         }
     });
 
     let node = RaftNode.default<string>(rpcId);
 
-    return [getNode, setNode];
-}
-
-
-
-if (require.main === module) {
-    const [getA, setA] = useNode();
-    const [getB, setB] = useNode();
-    const [getC, setC] = useNode();
-
-
-    // HACK in order to synchronize the node ids
-    // I need to find a way to reconcile this
-
-    const idA = getA().persistentState.id;
-    const idB = getB().persistentState.id;
-    const idC = getC().persistentState.id;
-
-    setA(
-        getA()
-        .newNextIndex(idB, 1)
-        .newNextIndex(idC, 1)
-    );
-
-    setB(
-        getB()
-        .newNextIndex(idA, 1)
-        .newNextIndex(idC, 1)
-    );
-
-    setC(
-        getC()
-        .newNextIndex(idA, 1)
-        .newNextIndex(idB, 1)
-    )
-    
-    // HACK end
+    return [
+        [getNode, setNode],
+        [setFollowerTimer, clearFollowerTimer],
+        [setCandidateTimer, clearCandidateTimer],
+        [setLeaderTimer, clearLeaderTimer]
+    ];
 }
 
 
@@ -97,13 +124,15 @@ function step(
         [setLeaderTimer, clearLeaderTimer],
     ];
 
-    if (event === 'BecomeFollower') becomeFollower.apply(null, args);
-    if (event === 'FollowerTimeout') followerTimeout.apply(null, args);
-    if (event === 'BecomeCandidate') becomeCandidate.apply(null, args);
-    if (event === 'CandidateTimeout') candidateTimeout.apply(null, args);
-    if (event === 'BecomeLeader') becomeLeader.apply(null, args);
+    // console.log(getNode().persistentState.id, event);
 
-    throw new Error(`step: Invalid event ${event}`);
+    if (event === 'BecomeFollower') becomeFollower.apply(null, args);
+    else if (event === 'FollowerTimeout') followerTimeout.apply(null, args);
+    else if (event === 'BecomeCandidate') becomeCandidate.apply(null, args);
+    else if (event === 'CandidateTimeout') candidateTimeout.apply(null, args);
+    else if (event === 'BecomeLeader') becomeLeader.apply(null, args);
+    else 
+        throw new Error(`step: Invalid event ${event}`);
 }
 
 function becomeFollower(
@@ -224,6 +253,54 @@ function becomeLeader(
             [setLeaderTimer, clearLeaderTimer],
             'BecomeLeader'
         )
-    });
+    }, 2100);
 
+}
+
+
+
+if (require.main === module) {
+    const A = useNode();
+    const B = useNode();
+    const C = useNode();
+
+    const [[getA, setA]] = A;
+    const [[getB, setB]] = B;
+    const [[getC, setC]] = C;
+
+    // HACK in order to synchronize the node ids
+    // I need to find a way to reconcile this
+
+    const idA = getA().persistentState.id;
+    const idB = getB().persistentState.id;
+    const idC = getC().persistentState.id;
+
+    setA(
+        getA()
+        .newNextIndex(idB, 1)
+        .newNextIndex(idC, 1)
+    );
+
+    setB(
+        getB()
+        .newNextIndex(idA, 1)
+        .newNextIndex(idC, 1)
+    );
+
+    setC(
+        getC()
+        .newNextIndex(idA, 1)
+        .newNextIndex(idB, 1)
+    )
+    
+    // HACK end
+
+
+    console.log('A', idA);
+    console.log('B', idB);
+    console.log('C', idC);
+
+    step.apply(null, [...A, 'BecomeFollower']);
+    step.apply(null, [...B, 'BecomeFollower']);
+    step.apply(null, [...C, 'BecomeFollower']);
 }
