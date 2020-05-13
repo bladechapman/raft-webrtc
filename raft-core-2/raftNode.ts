@@ -102,6 +102,15 @@ export class RaftNode<T> {
         );
     }
 
+    initializeNextIndices() {
+        const nextIndices = this.leaderState.nextIndices;
+        const lastLogIndex = this.persistentState.log.getLastEntry().index;
+
+        return Object.keys(nextIndices).reduce((acc, peerId) => {
+            return acc.newNextIndex(peerId as unknown as number, lastLogIndex);
+        }, this)
+    }
+
     newMatchIndex(peerId: number, newMatchIndex: number) {
         return new RaftNode(
             this.persistentState,

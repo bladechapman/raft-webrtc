@@ -219,7 +219,7 @@ export function receiveAppendEntriesRpc<T>(
     payload: any,
     becomeFollowerCallback  // hack
 ) {
-    console.log(getNode().persistentState.id, 'receiveAppend');
+    // console.log(getNode().persistentState.id, 'receiveAppend', getNode().mode);
 
     const node = getNode();
 

@@ -15,7 +15,7 @@ function useTimer():
 
     function setTimer(callback: any, timeout?: number) {
         clearTimeout(handle);
-        const t = timeout || Math.floor(Math.random() * 500) + 2000
+        const t = timeout || Math.random() * 700 + 2000
         handle = setTimeout(callback, t);
     }
 
@@ -124,7 +124,7 @@ function step(
         [setLeaderTimer, clearLeaderTimer],
     ];
 
-    // console.log(getNode().persistentState.id, event);
+    console.log(getNode().persistentState.id, event);
 
     if (event === 'BecomeFollower') becomeFollower.apply(null, args);
     else if (event === 'FollowerTimeout') followerTimeout.apply(null, args);
@@ -187,11 +187,17 @@ function becomeCandidate(
     setNode(
         node
         .term(node.persistentState.currentTerm + 1)
+        .vote(null)
         .becomeCandidate()
     );
 
+    console.log(`NEW CANDIDATE: ${getNode().persistentState.id}`, getNode().persistentState.currentTerm);
+
     broadcastRequestVoteRpc(getNode).then(majorityGranted => {
         if (majorityGranted) {
+            setNode(getNode().initializeNextIndices());
+
+            console.log(`NEW LEADER: ${getNode().persistentState.id}`, getNode().persistentState.currentTerm);
             step(
                 [getNode, setNode],
                 [setFollowerTimer, clearFollowerTimer],
@@ -253,7 +259,7 @@ function becomeLeader(
             [setLeaderTimer, clearLeaderTimer],
             'BecomeLeader'
         )
-    }, 2100);
+    }, 1500);
 
 }
 
