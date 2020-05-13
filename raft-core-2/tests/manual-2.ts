@@ -15,7 +15,7 @@ function useTimer():
 
     function setTimer(callback: any, timeout?: number) {
         clearTimeout(handle);
-        const t = timeout || Math.random() * 700 + 5000
+        const t = timeout || Math.random() * 500 + 1400
         handle = setTimeout(callback, t);
     }
 

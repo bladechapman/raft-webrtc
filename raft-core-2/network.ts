@@ -278,6 +278,8 @@ export function receiveAppendEntriesRpc<T>(
             const newCommitIndex = newNode.persistentState.log.getLastEntry().index;
             setNode(newNode.commit(newCommitIndex));
         }
+
+        // console.log(getNode().persistentState.id, 'append-success', getNode().persistentState.log.entries.slice(-3))
     }
 
     // console.log(getNode().persistentState.id, leaderTerm, receiverTerm, getNode().mode);
