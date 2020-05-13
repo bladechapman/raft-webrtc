@@ -1,9 +1,10 @@
-import { RaftNode } from './raftNode';
+import { RaftNode, Mode } from './raftNode';
 import { RaftPromise } from '../raft-draft/lib';
 import { rpcInvoke } from '../raft-draft/rpc';
 
 export function broadcastRequestVoteRpc<T>(
-    getNode: () => RaftNode<T>
+    getNode: () => RaftNode<T>,
+    becomeFollowerCallback
 ) {
     const node = getNode();
 
@@ -22,7 +23,15 @@ export function broadcastRequestVoteRpc<T>(
 
     const group = Object.keys(node.leaderState.nextIndices);
     const promises = group.map(peerId => {
-        return rpcInvoke(id, peerId, "receiveRequestVote", [payload]);
+        return rpcInvoke(id, peerId, "receiveRequestVote", [payload]).then((result: any) => {
+            const { term } = result;
+            const node = getNode();
+            if (term > node.persistentState.currentTerm) {
+                becomeFollowerCallback()
+            }
+
+            return result;
+        });
     });
 
     const condition = (mapping) => {
@@ -70,12 +79,12 @@ export function receiveRequestVoteRpc<T>(
     );
 
     if (voteGranted) {
-        if (proposedTerm > currentTerm) {
-            becomeFollowerCallback();
-            // setNode(node.becomeFollower());
-        }
-
         setNode(node.vote(candidateId).term(greaterTerm))
+    }
+
+    if (proposedTerm > currentTerm) {
+        becomeFollowerCallback();
+        // setNode(node.becomeFollower());
     }
 
     return {
@@ -87,7 +96,8 @@ export function receiveRequestVoteRpc<T>(
 export function broadcastAppendEntriesRpc<T>(
     getNode: () => RaftNode<T>,
     setNode: (newNode: RaftNode<T>) => RaftNode<T>,
-    proposedCommands: T[]
+    proposedCommands: T[],
+    becomeFollowerCallback
 ) {
     // console.log(getNode().persistentState.id, 'broadcastAppend');
 
@@ -103,7 +113,7 @@ export function broadcastAppendEntriesRpc<T>(
     setNode(newNode);
 
     const promises = Object.keys(nextIndices).map(followerId => {
-        return sendAppendEntries(parseFloat(followerId), getNode, setNode, proposedCommands);
+        return sendAppendEntries(parseFloat(followerId), getNode, setNode, proposedCommands, becomeFollowerCallback);
     });
 
     return RaftPromise.majority(promises).then(v => {
@@ -124,9 +134,12 @@ function sendAppendEntries<T>(
     followerId: number,
     getNode: () => RaftNode<T>,
     setNode: (newNode: RaftNode<T>) => RaftNode<T>,
-    proposedCommands: T[]
+    proposedCommands: T[],
+    becomeFollowerCallback
 ) {
     const node = getNode();
+
+    if (node.mode !== Mode.Leader) return new Promise((res, rej) => res('TEMP IMPL: NO LONGER LEADER'));
 
     const {
         currentTerm: term,
@@ -165,6 +178,13 @@ function sendAppendEntries<T>(
     return rpcInvoke(leaderId, followerId, 'receiveAppendEntries', [payload])
         .then((result: any) => {
             const currentNode = getNode();
+            const currentTerm = currentNode.persistentState.currentTerm;
+            const { success, term } = result;
+
+            if (term > currentTerm) {
+                becomeFollowerCallback();
+                return 'TEMP IMPL: NO LONGER LEADER 2';
+            }
 
             // TODO: I guess if we’re no longer leader, just throw out the response...
             // We’ll get back to that later, for now let’s just assume we’re still leader
@@ -172,7 +192,6 @@ function sendAppendEntries<T>(
             // if (Result.isOk(result)) {
                 // const { data } = result;
                 // const { success, term } = data;
-                const { success, term } = result;
                 if (success) {
                     // The log entry has been replicated on the follower.
                     // Update the match index for this node.
@@ -201,7 +220,7 @@ function sendAppendEntries<T>(
                     setNode(
                         currentNode.newNextIndex(followerId, newNextIndex)
                     );
-                    return sendAppendEntries(followerId, getNode, setNode, proposedCommands);
+                    return sendAppendEntries(followerId, getNode, setNode, proposedCommands, becomeFollowerCallback);
                 }
             // }
             // else {
@@ -219,7 +238,7 @@ export function receiveAppendEntriesRpc<T>(
     payload: any,
     becomeFollowerCallback  // hack
 ) {
-    // console.log(getNode().persistentState.id, 'receiveAppend', getNode().mode);
+    console.log(getNode().persistentState.id, 'receiveAppend', getNode().mode);
 
     const node = getNode();
 
@@ -261,6 +280,7 @@ export function receiveAppendEntriesRpc<T>(
         }
     }
 
+    // console.log(getNode().persistentState.id, leaderTerm, receiverTerm, getNode().mode);
     if (leaderTerm > receiverTerm) {
         becomeFollowerCallback();
         // setNode(node.becomeFollower())

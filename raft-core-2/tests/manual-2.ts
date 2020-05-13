@@ -15,7 +15,7 @@ function useTimer():
 
     function setTimer(callback: any, timeout?: number) {
         clearTimeout(handle);
-        const t = timeout || Math.random() * 700 + 2000
+        const t = timeout || Math.random() * 700 + 5000
         handle = setTimeout(callback, t);
     }
 
@@ -62,11 +62,12 @@ function useNode(): [
                 setNode,
                 payload,
                 () => {
-                    becomeFollower(
+                    step(
                         [getNode, setNode],
                         [setFollowerTimer, clearFollowerTimer],
                         [setCandidateTimer, clearCandidateTimer],
-                        [setLeaderTimer, clearLeaderTimer]
+                        [setLeaderTimer, clearLeaderTimer],
+                        'BecomeFollower'
                     )
                 }
             );
@@ -74,16 +75,19 @@ function useNode(): [
 
 
         'receiveAppendEntries': (payload) => {
+            clearFollowerTimer();
+
             const r = receiveAppendEntriesRpc(
                 getNode,
                 setNode,
                 payload,
                 () => {
-                    becomeFollower(
+                    step(
                         [getNode, setNode],
                         [setFollowerTimer, clearFollowerTimer],
                         [setCandidateTimer, clearCandidateTimer],
-                        [setLeaderTimer, clearLeaderTimer]
+                        [setLeaderTimer, clearLeaderTimer],
+                        'BecomeFollower'
                     )
                 }
             );
@@ -193,7 +197,7 @@ function becomeCandidate(
 
     console.log(`NEW CANDIDATE: ${getNode().persistentState.id}`, getNode().persistentState.currentTerm);
 
-    broadcastRequestVoteRpc(getNode).then(majorityGranted => {
+    broadcastRequestVoteRpc(getNode, () => step.apply(null, [...arguments, 'BecomeFollower'])).then(majorityGranted => {
         if (majorityGranted) {
             setNode(getNode().initializeNextIndices());
 
@@ -249,7 +253,7 @@ function becomeLeader(
     setNode(node.becomeLeader());
 
     // TODO: fix the heartbeat type
-    broadcastAppendEntriesRpc(getNode, setNode, ['hearbeat'])
+    broadcastAppendEntriesRpc(getNode, setNode, ['hearbeat'], () => step.apply(null, [...arguments, 'BecomeFollower']))
 
     setLeaderTimer(() => {
         step(
@@ -259,7 +263,7 @@ function becomeLeader(
             [setLeaderTimer, clearLeaderTimer],
             'BecomeLeader'
         )
-    }, 1500);
+    }, 1300 + Math.random() * 200);
 
 }
 
@@ -306,7 +310,7 @@ if (require.main === module) {
     console.log('B', idB);
     console.log('C', idC);
 
-    step.apply(null, [...A, 'BecomeFollower']);
-    step.apply(null, [...B, 'BecomeFollower']);
+    setTimeout(() => { step.apply(null, [...A, 'BecomeFollower']) }, 2500);
+    setTimeout(() => { step.apply(null, [...B, 'BecomeFollower']) }, 2000);
     step.apply(null, [...C, 'BecomeFollower']);
 }
