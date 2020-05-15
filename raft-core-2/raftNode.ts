@@ -25,7 +25,7 @@ export class RaftNode<T> {
 
     static default<T>(maybeId?: number) {
         const baseEntry = new LogEntry<T>(null, 0, 0);
-        const log = new Log<T>([baseEntry], 0, 0);
+        const log = new Log<T>([baseEntry]);
         const id = maybeId === undefined ? Math.random() : maybeId;
         const persistentState = new PersistentState<T>(log, 0, null, id);
         const volatileState = new VolatileState(0, 0);
@@ -76,6 +76,8 @@ export class RaftNode<T> {
     }
 
     commit(newIndex: number) {
+        console.log(this.persistentState.id, 'newCommit', newIndex);
+
         return new RaftNode(
             this.persistentState,
             this.volatileState.commit(newIndex),
@@ -170,17 +172,11 @@ type ReadonlyArrayAtLeastOne<T> = {
 
 class Log<T> {
     readonly entries: ReadonlyArrayAtLeastOne<LogEntry<T>>
-    readonly commitIndex: number | null;
-    readonly lastApplied: number | null;
 
     constructor(
         entries: ReadonlyArrayAtLeastOne<LogEntry<T>>,
-        commitIndex: number | null,
-        lastApplied: number | null
     ) {
         this.entries = entries;
-        this.commitIndex = commitIndex;
-        this.lastApplied = lastApplied;
     }
 
     length() {
@@ -221,8 +217,6 @@ class Log<T> {
 
         return new Log(
             newEntries,
-            this.commitIndex,
-            this.lastApplied
         );
     }
 
@@ -242,8 +236,6 @@ class Log<T> {
 
         return new Log(
             newEntries,
-            this.commitIndex,
-            this.lastApplied
         );
     }
 };

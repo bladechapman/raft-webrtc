@@ -21,15 +21,6 @@ export const Result = {
 
 export class RaftPromise<T> extends Promise<T> {
 
-    static majority<T>(
-        promises: Promise<T>[]
-    ) {
-        const threshold = Math.ceil(promises.length / 2);
-        const condition = mapping => Array.from(mapping.entries()).length > threshold;
-
-        return RaftPromise.threshold(condition, promises);
-    }
-
     static threshold<T>(
         condition: (resolutions: Map<Promise<T>, T>) => boolean,
         promises: Promise<T>[]

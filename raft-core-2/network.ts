@@ -116,7 +116,17 @@ export function broadcastAppendEntriesRpc<T>(
         return sendAppendEntries(parseFloat(followerId), getNode, setNode, proposedCommands, becomeFollowerCallback);
     });
 
-    return RaftPromise.majority(promises).then(v => {
+    const condition = (resolutions) => {
+        const successes = Array.from(resolutions.values()).reduce((acc: number, resolution: any) => {
+            if (resolution && resolution.success) return acc + 1;
+            else return acc;
+        }, 0);
+
+        return (successes as number + 1) > (promises.length / 2);
+    }
+
+    return RaftPromise.threshold(condition, promises).then(v => {
+    // return RaftPromise.majority(promises).then(v => {
         // TODO: We might need to be careful here. What happens
         // If the node is no longer the leader? We can probably do this by checking the term number
         //
@@ -125,7 +135,13 @@ export function broadcastAppendEntriesRpc<T>(
         // 5.3
         // A log entry is committed once the leader that created the entry has
         // replicated it on a majority of the servers.
-
+        const node = getNode();
+        setNode(
+            node
+            .commit(node.persistentState.log.getLastEntry().index)
+        );
+    }).catch(e => {
+        console.log('BROADCAST APPEND ENTRIES EXCEPTION', e);
     });
 }
 
