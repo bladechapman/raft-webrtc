@@ -4,6 +4,7 @@ import { rpcInvoke } from '../raft-draft/rpc';
 
 export function broadcastRequestVoteRpc<T>(
     getNode: () => RaftNode<T>,
+    setNode: (newNode: RaftNode<T>) => RaftNode<T>,
     becomeFollowerCallback
 ) {
     const node = getNode();
@@ -27,6 +28,7 @@ export function broadcastRequestVoteRpc<T>(
             const { term } = result;
             const node = getNode();
             if (term > node.persistentState.currentTerm) {
+                setNode(node.term(term));
                 becomeFollowerCallback()
             }
 
@@ -83,6 +85,7 @@ export function receiveRequestVoteRpc<T>(
     }
 
     if (proposedTerm > currentTerm) {
+        setNode(node.term(greaterTerm));
         becomeFollowerCallback();
         // setNode(node.becomeFollower());
     }
@@ -198,6 +201,7 @@ function sendAppendEntries<T>(
             const { success, term } = result;
 
             if (term > currentTerm) {
+                setNode(currentNode.term(term));
                 becomeFollowerCallback();
                 return 'TEMP IMPL: NO LONGER LEADER 2';
             }

@@ -197,7 +197,11 @@ function becomeCandidate(
 
     console.log(`NEW CANDIDATE: ${getNode().persistentState.id}`, getNode().persistentState.currentTerm);
 
-    broadcastRequestVoteRpc(getNode, () => step.apply(null, [...arguments, 'BecomeFollower'])).then(majorityGranted => {
+    broadcastRequestVoteRpc(
+        getNode,
+        setNode,
+        () => step.apply(null, [...arguments, 'BecomeFollower'])
+    ).then(majorityGranted => {
         if (majorityGranted) {
             setNode(getNode().initializeNextIndices());
 
