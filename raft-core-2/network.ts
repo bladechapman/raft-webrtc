@@ -300,6 +300,7 @@ export function receiveAppendEntriesRpc<T>(
 
     // console.log(getNode().persistentState.id, leaderTerm, receiverTerm, getNode().mode);
     if (leaderTerm > receiverTerm) {
+        setNode(node.term(leaderTerm))
         becomeFollowerCallback();
         // setNode(node.becomeFollower())
     }
