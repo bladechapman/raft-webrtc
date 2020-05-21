@@ -116,4 +116,7 @@ define("main", ["require", "exports", "lib/uuid", "config/ice"], function (requi
             }
         }
     }
+    console.log(send);
+    window.start = start;
+    window.send = send;
 });

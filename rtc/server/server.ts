@@ -12,11 +12,11 @@ function handleRequest(request, response) {
 
     if (request.url === '/') {
         response.writeHead(200, { 'Content-Type': 'text/html' });
-        response.end(fs.readFileSync('rtc/client/index.html'));
+        response.end(fs.readFileSync('rtc/client/build/index.html'));
     }
-    else if (request.url === '/webrtc.js') {
+    else if (request.url === '/main.js') {
         response.writeHead(200, { 'Content-Type': 'application/javascript' });
-        response.end(fs.readFileSync('rtc/client/webrtc.js'));
+        response.end(fs.readFileSync('rtc/client/build/main.js'));
     }
 
 }

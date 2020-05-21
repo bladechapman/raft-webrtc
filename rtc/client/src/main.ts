@@ -109,3 +109,6 @@ function send() {
         }
     }
 }
+
+(window as any).start = start;
+(window as any).send = send;
