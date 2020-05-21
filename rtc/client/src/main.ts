@@ -1,21 +1,11 @@
+import { createUUID } from './lib/uuid';
+import { PEER_CONNECTION_CONFIG } from './config/ice';
+
 var peerConnection;
 var serverConnection;
 var uuid;
 
-// var peerConnectionConfig = {
-//     'iceServers': [
-//         { 'urls': 'stun:stun.stunprotocol.org:3478' },
-//         { 'urls': 'stun:stun.l.google.com:19302' }
-//     ]
-// };
 var localChannel;
-
-var peerConnectionConfig = {
-    'iceServers': [
-        { 'urls': 'stun:stun.stunprotocol.org:3478' },
-        { 'urls': 'stun:stun.l.google.com:19302' },
-    ]
-};
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM READY');
@@ -35,7 +25,7 @@ function pageReady() {
 function start(isCaller) {
     console.log('START');
 
-    peerConnection = new RTCPeerConnection(peerConnectionConfig);
+    peerConnection = new RTCPeerConnection(PEER_CONNECTION_CONFIG);
     peerConnection.onicecandidate = gotIceCandidate;
     peerConnection.ondatachannel = gotDataChannel
     localChannel = peerConnection.createDataChannel('test-channel');
@@ -102,24 +92,20 @@ function gotDataChannel(event) {
         console.log('CHANNEL RECEIVED: ', event.data);
         var newChild = document.createElement('div');
         newChild.innerHTML = event.data;
-        document.getElementById('history').appendChild(newChild);
+        var historyElem = document.getElementById('history');
+        if (historyElem) {
+            historyElem.appendChild(newChild);
+        }
     }
 }
 
 function send() {
     console.log('SEND', localChannel);
     if (localChannel) {
-        const text = document.getElementById('submission').value;
-        localChannel.send(text);
+        const submissionElem = document.getElementById('submission') as HTMLInputElement;
+        if (submissionElem) {
+            const text = submissionElem.value;
+            localChannel.send(text);
+        }
     }
-}
-
-// Taken from http://stackoverflow.com/a/105074/515584
-// Strictly speaking, it's not a real UUID, but it gets the job done here
-function createUUID() {
-  function s4() {
-    return Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);
-  }
-
-  return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4();
 }

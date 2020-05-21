@@ -14,6 +14,7 @@
     "typescript": "^3.8.3"
   },
   "scripts": {
-    "serve": "ts-node rtc/server/server.ts"
+    "serve": "ts-node rtc/server/server.ts",
+    "build:client": "mkdir -p rtc/client/build; tsc rtc/client/src/main.ts --module amd --outFile rtc/client/build/main.js"
   }
 }
