@@ -56,10 +56,10 @@ typescript@^3.8.3:
   resolved "https://artifacts.apple.com/api/npm/npm-private/typescript/-/typescript-3.8.3.tgz#409eb8544ea0335711205869ec458ab109ee1061"
   integrity sha1-QJ64VE6gM1cRIFhp7EWKsQnuEGE=
 
-ws@^7.2.3:
-  version "7.2.3"
-  resolved "https://artifacts.apple.com/api/npm/npm-private/ws/-/ws-7.2.3.tgz#a5411e1fb04d5ed0efee76d26d5c46d830c39b46"
-  integrity sha1-pUEeH7BNXtDv7nbSbVxG2DDDm0Y=
+ws@^7.3.0:
+  version "7.3.0"
+  resolved "https://artifacts.apple.com/api/npm/npm-private/ws/-/ws-7.3.0.tgz#4b2f7f219b3d3737bc1a2fbf145d825b94d38ffd"
+  integrity sha1-Sy9/IZs9Nze8Gi+/FF2CW5TTj/0=
 
 yn@3.1.1:
   version "3.1.1"

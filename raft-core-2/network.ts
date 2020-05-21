@@ -311,6 +311,6 @@ export function receiveAppendEntriesRpc<T>(
 
     return {
         success,
-        term: receiverTerm  // Are we sure this is correct?
+        term: getNode().persistentState.currentTerm
     };
 }

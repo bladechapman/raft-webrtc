@@ -76,7 +76,7 @@ export class RaftNode<T> {
     }
 
     commit(newIndex: number) {
-        console.log(this.persistentState.id, 'newCommit', newIndex);
+        // console.log(this.persistentState.id, 'newCommit', newIndex);
 
         return new RaftNode(
             this.persistentState,
