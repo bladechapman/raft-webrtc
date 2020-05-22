@@ -20,103 +20,95 @@ define("config/ice", ["require", "exports"], function (require, exports) {
         ]
     });
 });
-define("main", ["require", "exports", "lib/uuid", "config/ice"], function (require, exports, uuid_1, ice_1) {
+define("rtc", ["require", "exports", "config/ice", "lib/uuid"], function (require, exports, ice_1, uuid_1) {
     "use strict";
     exports.__esModule = true;
-    var peerConnection;
-    var serverConnection;
-    var uuid;
-    var localChannel;
-    document.addEventListener('DOMContentLoaded', function () {
-        console.log('DOM READY');
-        pageReady();
-    });
-    function pageReady() {
-        console.log('PAGE READY');
-        uuid = uuid_1.createUUID();
-        serverConnection = new WebSocket('wss://' + window.location.hostname + ':8443');
-        serverConnection.onmessage = gotMessageFromServer;
-    }
-    function start(isCaller) {
-        console.log('START');
-        peerConnection = new RTCPeerConnection(ice_1.PEER_CONNECTION_CONFIG);
-        peerConnection.onicecandidate = gotIceCandidate;
-        peerConnection.ondatachannel = gotDataChannel;
-        localChannel = peerConnection.createDataChannel('test-channel');
-        if (isCaller) {
-            console.log('CREATE OFFER');
-            peerConnection.createOffer().then(setLocalDescription)["catch"](function (e) {
-                console.log(e);
-            });
+    var RtcBidirectionalDataChannel = /** @class */ (function () {
+        function RtcBidirectionalDataChannel(uuid, delegate) {
+            this.uuid = uuid;
+            this.delegate = delegate;
+            var peerConnection = this.peerConnection = new RTCPeerConnection(ice_1.PEER_CONNECTION_CONFIG);
+            var serverConnection = this.serverConnection = new WebSocket('wss://' + window.location.hostname + ':8443');
+            peerConnection.ondatachannel = this.gotDataChannel.bind(this);
+            peerConnection.onicecandidate = this.gotIceCandidate.bind(this);
+            this.outgoingChannel = peerConnection.createDataChannel(uuid + ":" + uuid_1.createUUID());
+            serverConnection.onmessage = this.gotMessageFromServer.bind(this);
         }
-    }
-    function gotMessageFromServer(message) {
-        if (!peerConnection)
-            start(false);
-        var signal = JSON.parse(message.data);
-        if (signal.uuid === uuid)
-            return;
-        console.log('RECEIVED SERVER MESSAGE:', message);
-        if (signal.sdp) {
-            peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp)).then(function () {
-                if (signal.sdp.type === 'offer') {
-                    peerConnection.createAnswer().then(setLocalDescription)["catch"](function (e) {
-                        console.log(e);
-                    });
-                }
-            })["catch"](function (e) {
-                console.log(e);
-            });
-        }
-        else if (signal.ice) {
-            peerConnection.addIceCandidate(new RTCIceCandidate(signal.ice))["catch"](function (e) {
-                console.log(e);
-            });
-        }
-    }
-    function gotIceCandidate(event) {
-        console.log('got ice candidate');
-        if (event.candidate !== null) {
-            console.log('SENDING ICE CANDIDATE');
-            serverConnection.send(JSON.stringify({ 'ice': event.candidate, 'uuid': uuid }));
-        }
-    }
-    function setLocalDescription(description) {
-        peerConnection.setLocalDescription(description).then(function () {
-            console.log('SENDING SDP');
-            serverConnection.send(JSON.stringify({ 'sdp': peerConnection.localDescription, 'uuid': uuid }));
-        })["catch"](function (e) {
-            console.log(e);
-        });
-    }
-    var remoteChannel;
-    function gotDataChannel(event) {
-        remoteChannel = event.channel;
-        remoteChannel.onopen = function (event) {
-            localChannel.send('INIT');
-            console.log('CHANNEL OPENED');
+        RtcBidirectionalDataChannel.prototype.createOffer = function () {
+            this.peerConnection.createOffer()
+                .then(this.setLocalDescription.bind(this))["catch"](function () { });
         };
-        remoteChannel.onmessage = function (event) {
-            console.log('CHANNEL RECEIVED: ', event.data);
-            var newChild = document.createElement('div');
-            newChild.innerHTML = event.data;
-            var historyElem = document.getElementById('history');
-            if (historyElem) {
-                historyElem.appendChild(newChild);
+        RtcBidirectionalDataChannel.prototype.send = function (payload) {
+            this.outgoingChannel.send(payload);
+        };
+        RtcBidirectionalDataChannel.prototype.setLocalDescription = function (description) {
+            var _a = this, peerConnection = _a.peerConnection, serverConnection = _a.serverConnection, uuid = _a.uuid;
+            peerConnection.setLocalDescription(description)
+                .then(function () {
+                serverConnection.send(JSON.stringify({ sdp: peerConnection.localDescription, uuid: uuid }));
+            })["catch"](function () { });
+        };
+        RtcBidirectionalDataChannel.prototype.gotIceCandidate = function (e) {
+            var _a = this, uuid = _a.uuid, serverConnection = _a.serverConnection;
+            if (e.candidate !== null) {
+                serverConnection.send(JSON.stringify({ 'ice': e.candidate, uuid: uuid }));
             }
         };
-    }
-    function send() {
-        console.log('SEND', localChannel);
-        if (localChannel) {
+        RtcBidirectionalDataChannel.prototype.gotDataChannel = function (e) {
+            var _this = this;
+            var incomingChannel = this.incomingChannel = e.channel;
+            incomingChannel.onopen = function () {
+                _this.delegate.channelOpened();
+            };
+            incomingChannel.onmessage = function (e) {
+                _this.delegate.messageReceived(e);
+            };
+        };
+        RtcBidirectionalDataChannel.prototype.gotMessageFromServer = function (message) {
+            var _this = this;
+            var signal = JSON.parse(message.data);
+            if (signal.uuid === this.uuid)
+                return;
+            if (signal.sdp) {
+                this.peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp))
+                    .then(function () {
+                    if (signal.sdp.type === 'offer') {
+                        _this.peerConnection.createAnswer()
+                            .then(_this.setLocalDescription.bind(_this))["catch"](function (e) { });
+                    }
+                })["catch"](function (e) { });
+            }
+            else if (signal.ice) {
+                this.peerConnection.addIceCandidate(new RTCIceCandidate(signal.ice))["catch"](function (e) { });
+            }
+        };
+        return RtcBidirectionalDataChannel;
+    }());
+    exports.RtcBidirectionalDataChannel = RtcBidirectionalDataChannel;
+});
+define("main", ["require", "exports", "lib/uuid", "rtc"], function (require, exports, uuid_2, rtc_1) {
+    "use strict";
+    exports.__esModule = true;
+    document.addEventListener('DOMContentLoaded', function () {
+        console.log('DOM READY');
+        main();
+    });
+    function main() {
+        var uuid = uuid_2.createUUID();
+        var channel = new rtc_1.RtcBidirectionalDataChannel(uuid, {
+            channelOpened: function () { },
+            messageReceived: function (m) { console.log(m); }
+        });
+        window.start = function () {
+            console.log('START');
+            channel.createOffer();
+        };
+        window.send = function () {
             var submissionElem = document.getElementById('submission');
             if (submissionElem) {
                 var text = submissionElem.value;
-                localChannel.send(text);
+                channel.send(text);
             }
-        }
+        };
     }
-    console.log(send);
-    window.start = start;
-    window.send = send;
 });
