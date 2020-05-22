@@ -29,7 +29,10 @@ httpsServer.listen(HTTPS_PORT, '0.0.0.0');
 const wss = new WS.Server({ server: httpsServer });
 wss.on('connection', function(ws) {
     ws.on('message', function (message) {
-        wss.broadcast(message)
+        const parsedMessage = JSON.parse(message);
+        if (parsedMessage.target === 'all') {
+            wss.broadcast(message)
+        }
     });
 });
 

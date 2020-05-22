@@ -45,13 +45,13 @@ define("rtc", ["require", "exports", "config/ice", "lib/uuid"], function (requir
             var _a = this, peerConnection = _a.peerConnection, serverConnection = _a.serverConnection, uuid = _a.uuid;
             peerConnection.setLocalDescription(description)
                 .then(function () {
-                serverConnection.send(JSON.stringify({ sdp: peerConnection.localDescription, uuid: uuid }));
+                serverConnection.send(JSON.stringify({ sdp: peerConnection.localDescription, uuid: uuid, target: 'all' }));
             })["catch"](function () { });
         };
         RtcBidirectionalDataChannel.prototype.gotIceCandidate = function (e) {
             var _a = this, uuid = _a.uuid, serverConnection = _a.serverConnection;
             if (e.candidate !== null) {
-                serverConnection.send(JSON.stringify({ 'ice': e.candidate, uuid: uuid }));
+                serverConnection.send(JSON.stringify({ 'ice': e.candidate, uuid: uuid, target: 'all' }));
             }
         };
         RtcBidirectionalDataChannel.prototype.gotDataChannel = function (e) {

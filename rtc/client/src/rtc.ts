@@ -24,7 +24,6 @@ export class RtcBidirectionalDataChannel {
         const peerConnection = this.peerConnection = new RTCPeerConnection(PEER_CONNECTION_CONFIG);
         const serverConnection = this.serverConnection = new WebSocket('wss://' + window.location.hostname + ':8443');
 
-
         peerConnection.ondatachannel = this.gotDataChannel.bind(this);
         peerConnection.onicecandidate = this.gotIceCandidate.bind(this);
         this.outgoingChannel = peerConnection.createDataChannel(`${uuid}:${createUUID()}`)
@@ -51,7 +50,7 @@ export class RtcBidirectionalDataChannel {
 
         peerConnection.setLocalDescription(description)
             .then(() => {
-                serverConnection.send(JSON.stringify({ sdp: peerConnection.localDescription, uuid }));
+                serverConnection.send(JSON.stringify({ sdp: peerConnection.localDescription, uuid, target: 'all' }));
             })
             .catch(() => {});
         
@@ -64,7 +63,7 @@ export class RtcBidirectionalDataChannel {
         } = this;
 
         if (e.candidate !== null) {
-            serverConnection.send(JSON.stringify({ 'ice': e.candidate, uuid }));
+            serverConnection.send(JSON.stringify({ 'ice': e.candidate, uuid, target: 'all' }));
         }
     }
 
