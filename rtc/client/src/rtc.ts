@@ -1,5 +1,4 @@
 import { PEER_CONNECTION_CONFIG } from './config/ice';
-import { createUUID } from './lib/uuid';
 
 export interface RtcBidirectionalDataChannelDelegate {
 
@@ -11,24 +10,29 @@ export interface RtcBidirectionalDataChannelDelegate {
 
 export class RtcBidirectionalDataChannel {
 
-    private readonly uuid: string;
+    private readonly localUuid: string;
+    private readonly peerUuid: string;
     private readonly delegate: RtcBidirectionalDataChannelDelegate;
     private readonly peerConnection: RTCPeerConnection;
     private readonly serverConnection: WebSocket;
     private outgoingChannel: RTCDataChannel;
     private incomingChannel: RTCDataChannel | undefined;
 
-    constructor(uuid: string, delegate: RtcBidirectionalDataChannelDelegate) {
-        this.uuid = uuid;
+    constructor(
+        localUuid: string,
+        peerUuid: string,
+        serverConnection: WebSocket,
+        delegate: RtcBidirectionalDataChannelDelegate
+    ) {
+        this.localUuid = localUuid;
+        this.peerUuid = peerUuid;
         this.delegate = delegate;
+        this.serverConnection = serverConnection;
         const peerConnection = this.peerConnection = new RTCPeerConnection(PEER_CONNECTION_CONFIG);
-        const serverConnection = this.serverConnection = new WebSocket('wss://' + window.location.hostname + ':8443');
 
         peerConnection.ondatachannel = this.gotDataChannel.bind(this);
         peerConnection.onicecandidate = this.gotIceCandidate.bind(this);
-        this.outgoingChannel = peerConnection.createDataChannel(`${uuid}:${createUUID()}`)
-
-        serverConnection.onmessage = this.gotMessageFromServer.bind(this);
+        this.outgoingChannel = peerConnection.createDataChannel(`${localUuid}:${peerUuid}`)
     }
 
     createOffer() {
@@ -38,6 +42,7 @@ export class RtcBidirectionalDataChannel {
     }
 
     send(payload: any) {
+        console.log('SENDING', payload);
         this.outgoingChannel.send(payload);
     }
 
@@ -45,12 +50,19 @@ export class RtcBidirectionalDataChannel {
         const {
             peerConnection,
             serverConnection,
-            uuid
+            localUuid,
+            peerUuid
         } = this;
 
         peerConnection.setLocalDescription(description)
             .then(() => {
-                serverConnection.send(JSON.stringify({ sdp: peerConnection.localDescription, uuid, target: 'all' }));
+                serverConnection.send(
+                    JSON.stringify({
+                        sdp: peerConnection.localDescription,
+                        uuid: localUuid,
+                        target: peerUuid
+                    })
+                );
             })
             .catch(() => {});
         
@@ -58,12 +70,19 @@ export class RtcBidirectionalDataChannel {
 
     private gotIceCandidate(e: RTCPeerConnectionIceEvent) {
         const {
-            uuid,
+            localUuid,
+            peerUuid,
             serverConnection
         } = this;
 
         if (e.candidate !== null) {
-            serverConnection.send(JSON.stringify({ 'ice': e.candidate, uuid, target: 'all' }));
+            serverConnection.send(
+                JSON.stringify({
+                    ice: e.candidate,
+                    uuid: localUuid,
+                    target: peerUuid
+                })
+            );
         }
     }
 
@@ -78,9 +97,9 @@ export class RtcBidirectionalDataChannel {
         }
     }
 
-    private gotMessageFromServer(message: MessageEvent) {
+    gotMessageFromServer(message: MessageEvent) {
         var signal = JSON.parse(message.data);
-        if (signal.uuid === this.uuid) return;
+        if (signal.uuid === this.localUuid) return;
 
         if (signal.sdp) {
             this.peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp))

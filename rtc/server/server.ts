@@ -27,19 +27,38 @@ httpsServer.listen(HTTPS_PORT, '0.0.0.0');
 // =======
 
 const wss = new WS.Server({ server: httpsServer });
+
+
+const registeredConnections = new Map();
+
 wss.on('connection', function(ws) {
+
     ws.on('message', function (message) {
         const parsedMessage = JSON.parse(message);
-        if (parsedMessage.target === 'all') {
-            wss.broadcast(message)
+        const target = parsedMessage.target;
+
+        if (parsedMessage.register) {
+            ws.send(JSON.stringify({ 'discover': Array.from(registeredConnections.keys()) }))
+
+            const uuid = parsedMessage.uuid;
+            registeredConnections.set(uuid, ws);
+            console.log('registered', uuid);
+        }
+
+        else if (
+            parsedMessage.sdp ||
+            parsedMessage.ice
+        ) {
+            wss.forward(message);
         }
     });
 });
 
-wss.broadcast = function (data) {
-    this.clients.forEach(function (client) {
-        if (client.readyState === WS.OPEN) {
-            client.send(data);
-        }
-    });
+wss.forward = function (data) {
+    const parsedMessage = JSON.parse(data);
+    if (parsedMessage.target) {
+        const targetWs = registeredConnections.get(parsedMessage.target);
+        if (!targetWs) throw new Error('Forwarding target does not exist!');
+        targetWs.send(data);
+    }
 }
