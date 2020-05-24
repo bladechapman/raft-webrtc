@@ -1,6 +1,8 @@
 import { createUUID } from './lib/uuid';
 import { RtcBidirectionalDataChannel, RtcBidirectionalDataChannelDelegate } from './rtc';
 
+import { useNode, step  } from '../../../raft-core-2/api';
+
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM READY');
     main();
@@ -78,7 +80,7 @@ function main() {
     // ===========
 
 
-    (window as any).start = () => {
+    (window as any).call = () => {
         serverConnection.send(JSON.stringify({ 'register': true, uuid }));
     }
 
@@ -90,5 +92,9 @@ function main() {
                 channel.send(text);
             });
         }
+    }
+
+    (window as any).beginRaft = () => {
+        console.log('BEGIN RAFT');
     }
 }
