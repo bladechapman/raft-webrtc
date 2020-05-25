@@ -47,7 +47,8 @@ wss.on('connection', function(ws) {
 
         else if (
             parsedMessage.sdp ||
-            parsedMessage.ice
+            parsedMessage.ice ||
+            parsedMessage.rpc
         ) {
             wss.forward(message);
         }

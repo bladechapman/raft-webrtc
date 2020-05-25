@@ -1,5 +1,3 @@
-import { RaftNodeId } from './raftNode';
-import { TLogEntry } from './log';
 import { Result, TResult } from './lib';
 
 const rpcGroup: {
@@ -32,14 +30,6 @@ export function rpcInvoke(invokerId, receiverId, method, args) {
 
     return responsePromise;
 }
-
-// export function rpcBroadcast(invokerId, method, args) {
-//     return Promise.all(
-//         Object.values(rpcGroup).map(rpcMember => 
-//             rpcInvoke(invokerId, rpcMember.memberId, method, args)
-//         )
-//     );
-// }
 
 async function rpcReceive(receiverId, senderPayload) {
     const isInvocation = senderPayload.__invoke === true;
@@ -87,11 +77,15 @@ function rpcHandleResponse(responsePayload) {
 }
 
 
-export function rpcRegister(delegate): [number, any] {
+export function rpcRegister(
+    delegate
+): [number, any] {
     const id = Math.random();
     rpcGroup[id] = {
         memberId: id,
         delegate,
+
+        // Handles for when receiving a response
         callIds: {}
     }
 

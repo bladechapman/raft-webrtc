@@ -162,6 +162,64 @@ define("rtc/client/src/rtc", ["require", "exports", "rtc/client/src/config/ice"]
     }());
     exports.RtcBidirectionalDataChannel = RtcBidirectionalDataChannel;
 });
+define("rpc/rpc", ["require", "exports"], function (require, exports) {
+    "use strict";
+    exports.__esModule = true;
+    function rpcRegister(uuid, send, delegate) {
+        var callIds = {};
+        function rpcReceive(senderPayload) {
+            var isInvocation = senderPayload.__invoke === true;
+            if (isInvocation)
+                rpcRespond(senderPayload);
+            else
+                rpcHandleResponse(senderPayload);
+        }
+        function rpcHandleResponse(responsePayload) {
+            var result = responsePayload.result, callId = responsePayload.callId;
+            // extract the result from the payload
+            var _a = callIds[callId], res = _a[0], rej = _a[1];
+            delete callIds[callId];
+            // resolve the promise with the result
+            res(result);
+        }
+        function rpcRespond(senderPayload) {
+            var method = senderPayload.method, argsString = senderPayload.args, invokerId = senderPayload.invokerId, targetId = senderPayload.target, callId = senderPayload.callId;
+            // invoke whatever method is requested
+            var args = JSON.parse(argsString);
+            var result = delegate[method].apply(null, args);
+            var responsePayload = {
+                result: result,
+                invokerId: targetId,
+                target: invokerId,
+                callId: callId,
+                __response: true,
+                rpc: true
+            };
+            send(responsePayload);
+        }
+        function rpcInvoke(targetId, method, args) {
+            var callId = Math.random(); // TODO: improve this
+            var invokePayload = {
+                method: method,
+                args: JSON.stringify(args),
+                invokerId: uuid,
+                target: targetId,
+                callId: callId,
+                __invoke: true,
+                rpc: true
+            };
+            var responsePromise = new Promise(function (res, rej) {
+                // TODO: Add timeout?
+                callIds[callId] = [res, rej];
+            });
+            // Send to receiverId with invokePayload
+            send(invokePayload);
+            return responsePromise;
+        }
+        return [rpcInvoke, rpcReceive];
+    }
+    exports.rpcRegister = rpcRegister;
+});
 define("raft-core-2/raftNode", ["require", "exports"], function (require, exports) {
     "use strict";
     exports.__esModule = true;
@@ -391,128 +449,6 @@ define("raft-draft/lib", ["require", "exports"], function (require, exports) {
     }
     exports.debug = debug;
 });
-define("raft-draft/log", ["require", "exports"], function (require, exports) {
-    "use strict";
-    exports.__esModule = true;
-    function fromLog(log) {
-        if (log === null) {
-            return {
-                entries: [],
-                commitIndex: 0,
-                lastApplied: 0
-            };
-        }
-        else {
-            return __assign(__assign({}, log), { entries: log.entries.slice() });
-        }
-    }
-    function fromEntries(log, entries) {
-        return fromLog(__assign(__assign({}, log), { entries: entries }));
-    }
-    function getLog() {
-        return fromLog(null);
-    }
-    function sliceLog(log, fromIndex, toIndex) {
-        var entries = log.entries;
-        return entries.slice(fromIndex, toIndex);
-    }
-    function getEntryAtIndex(log, index) {
-        var entries = log.entries;
-        return entries.find(function (entry) { return entry.index === index; });
-    }
-    function hasEntryAtIndex(log, index) {
-        return Boolean(getEntryAtIndex(log, index));
-    }
-    function getLastEntry(log) {
-        var length = log.entries.length;
-        return Log.getEntryAtIndex(log, length - 1);
-    }
-    function getLength(log) {
-        var entries = log.entries;
-        return entries.length === 0 ? 0 : entries[entries.length - 1].index + 1;
-    }
-    function withCommands(log, term, commands) {
-        var lastEntry = Log.getLastEntry(log);
-        var lastIndex = !!lastEntry ? lastEntry.index : -1;
-        var newEntries = commands.map(function (command, i) {
-            return {
-                termReceived: term,
-                command: command,
-                index: lastIndex + i + 1
-            };
-        });
-        return Log.fromEntries(log, log.entries.concat(newEntries));
-    }
-    var Log = /** @class */ (function () {
-        function Log() {
-        }
-        Log.fromLog = fromLog;
-        Log.fromEntries = fromEntries;
-        Log.getLog = getLog;
-        Log.getLength = getLength;
-        Log.sliceLog = sliceLog;
-        Log.getEntryAtIndex = getEntryAtIndex;
-        Log.hasEntryAtIndex = hasEntryAtIndex;
-        Log.getLastEntry = getLastEntry;
-        Log.withCommands = withCommands;
-        return Log;
-    }());
-    exports.Log = Log;
-});
-define("raft-draft/raftNode", ["require", "exports"], function (require, exports) {
-    "use strict";
-    exports.__esModule = true;
-    var NodeMode;
-    (function (NodeMode) {
-        // Uninitialized = 0,
-        NodeMode[NodeMode["Follower"] = 1] = "Follower";
-        NodeMode[NodeMode["Candidate"] = 2] = "Candidate";
-        NodeMode[NodeMode["Leader"] = 3] = "Leader";
-    })(NodeMode = exports.NodeMode || (exports.NodeMode = {}));
-    var ModeEvent;
-    (function (ModeEvent) {
-        ModeEvent[ModeEvent["Startup"] = 1] = "Startup";
-        ModeEvent[ModeEvent["Timeout"] = 2] = "Timeout";
-        ModeEvent[ModeEvent["MajorityReceived"] = 3] = "MajorityReceived";
-        ModeEvent[ModeEvent["LeaderDiscovered"] = 4] = "LeaderDiscovered";
-    })(ModeEvent || (ModeEvent = {}));
-    function fromLog(node, log) {
-        var oldPersistentState = node.persistentState;
-        return __assign(__assign({}, node), { persistentState: __assign(__assign({}, oldPersistentState), { log: log }) });
-    }
-    function fromCommitIndex(node, commitIndex) {
-        var oldVolatileState = node.volatileState;
-        return __assign(__assign({}, node), { volatileState: __assign(__assign({}, oldVolatileState), { commitIndex: commitIndex }) });
-    }
-    function fromNextIndices(node, nextIndices) {
-        var oldLeaderStateVolatile = node.leaderStateVolatile;
-        return __assign(__assign({}, node), { leaderStateVolatile: __assign(__assign({}, oldLeaderStateVolatile), { nextIndices: nextIndices }) });
-    }
-    function fromMatchIndices(node, matchIndices) {
-        var oldLeaderStateVolatile = node.leaderStateVolatile;
-        return __assign(__assign({}, node), { leaderStateVolatile: __assign(__assign({}, oldLeaderStateVolatile), { matchIndices: matchIndices }) });
-    }
-    function fromVotedFor(node, newVotedFor) {
-        var oldPersistentState = node.persistentState;
-        return __assign(__assign({}, node), { persistentState: __assign(__assign({}, oldPersistentState), { votedFor: newVotedFor }) });
-    }
-    function fromCurrentTerm(node, newTerm) {
-        var oldPersistentState = node.persistentState;
-        return __assign(__assign({}, node), { persistentState: __assign(__assign({}, oldPersistentState), { currentTerm: newTerm }) });
-    }
-    var RaftNode = /** @class */ (function () {
-        function RaftNode() {
-        }
-        RaftNode.fromLog = fromLog;
-        RaftNode.fromCommitIndex = fromCommitIndex;
-        RaftNode.fromNextIndices = fromNextIndices;
-        RaftNode.fromMatchIndices = fromMatchIndices;
-        RaftNode.fromVotedFor = fromVotedFor;
-        RaftNode.fromCurrentTerm = fromCurrentTerm;
-        return RaftNode;
-    }());
-    exports.RaftNode = RaftNode;
-});
 define("raft-draft/rpc", ["require", "exports"], function (require, exports) {
     "use strict";
     exports.__esModule = true;
@@ -535,13 +471,6 @@ define("raft-draft/rpc", ["require", "exports"], function (require, exports) {
         return responsePromise;
     }
     exports.rpcInvoke = rpcInvoke;
-    // export function rpcBroadcast(invokerId, method, args) {
-    //     return Promise.all(
-    //         Object.values(rpcGroup).map(rpcMember => 
-    //             rpcInvoke(invokerId, rpcMember.memberId, method, args)
-    //         )
-    //     );
-    // }
     function rpcReceive(receiverId, senderPayload) {
         return __awaiter(this, void 0, void 0, function () {
             var isInvocation;
@@ -600,6 +529,7 @@ define("raft-draft/rpc", ["require", "exports"], function (require, exports) {
         rpcGroup[id] = {
             memberId: id,
             delegate: delegate,
+            // Handles for when receiving a response
             callIds: {}
         };
         return [id, rpcGroup];
@@ -990,7 +920,7 @@ define("raft-core-2/api", ["require", "exports", "raft-core-2/raftNode", "raft-c
         }, 1300 + Math.random() * 200);
     }
 });
-define("rtc/client/src/main", ["require", "exports", "rtc/client/src/lib/uuid", "rtc/client/src/rtc"], function (require, exports, uuid_1, rtc_1) {
+define("rtc/client/src/main", ["require", "exports", "rtc/client/src/lib/uuid", "rtc/client/src/rtc", "rpc/rpc"], function (require, exports, uuid_1, rtc_1, rpc_3) {
     "use strict";
     exports.__esModule = true;
     document.addEventListener('DOMContentLoaded', function () {
@@ -1001,18 +931,22 @@ define("rtc/client/src/main", ["require", "exports", "rtc/client/src/lib/uuid", 
         var uuid = uuid_1.createUUID();
         var serverConnection = new WebSocket('wss://' + window.location.hostname + ':8443');
         var dataChannels = new Map();
+        var _a = rpc_3.rpcRegister(uuid, function (payload) {
+            var target = payload.target;
+            var channel = dataChannels.get(target);
+            channel.send(JSON.stringify(payload));
+        }, {
+            printAndAcknowledge: function (p) {
+                console.log("RECEIVED, " + p);
+                return "ACK " + uuid;
+            }
+        }), rpcInvoke = _a[0], rpcReceive = _a[1];
         serverConnection.onmessage = function (message) {
             var parsed = JSON.parse(message.data);
             if (parsed.discover) {
                 // Create a RtcBidirectionalDataChannel for each discovered peer
                 // Send offers to each new peer via the signaling server
-                var peerUuids = parsed.discover;
-                peerUuids.forEach(function (peerUuid) {
-                    var channel = new rtc_1.RtcBidirectionalDataChannel(uuid, peerUuid, serverConnection, {
-                        channelOpened: function () { console.log("Opened channel for " + peerUuid); },
-                        messageReceived: function (m) { console.log("Message received from " + peerUuid + " - " + m); }
-                    });
-                    dataChannels.set(peerUuid, channel);
+                registerDataChannels(uuid, parsed.discover, dataChannels, serverConnection, rpcReceive).forEach(function (channel) {
                     channel.createOffer();
                 });
             }
@@ -1023,13 +957,10 @@ define("rtc/client/src/main", ["require", "exports", "rtc/client/src/lib/uuid", 
                 // This will send answer to offering peer via the signaling server
                 // Once the offer is answered, the peers should have everything
                 // they need to establish a peer connection.
-                var peerUuid_1 = parsed.uuid;
-                var channel = new rtc_1.RtcBidirectionalDataChannel(uuid, peerUuid_1, serverConnection, {
-                    channelOpened: function () { console.log("Opened channel for " + peerUuid_1); },
-                    messageReceived: function (m) { console.log("Message received from " + peerUuid_1 + " - " + m); }
+                var peerUuid = parsed.uuid;
+                var channel = registerDataChannels(uuid, [peerUuid], dataChannels, serverConnection, rpcReceive).forEach(function (channel) {
+                    channel.gotMessageFromServer(message);
                 });
-                dataChannels.set(peerUuid_1, channel);
-                channel.gotMessageFromServer(message);
             }
             else if (parsed.sdp ||
                 parsed.ice) {
@@ -1051,13 +982,38 @@ define("rtc/client/src/main", ["require", "exports", "rtc/client/src/lib/uuid", 
             var submissionElem = document.getElementById('submission');
             if (submissionElem) {
                 var text_1 = submissionElem.value;
-                Array.from(dataChannels.values()).forEach(function (channel) {
-                    channel.send(text_1);
+                Array.from(dataChannels.keys()).forEach(function (peerUuid) {
+                    var t = rpcInvoke(peerUuid, 'printAndAcknowledge', [text_1]);
+                    t.then(function (r) {
+                        console.log(r);
+                    });
                 });
             }
+            // const submissionElem = document.getElementById('submission') as HTMLInputElement;
+            // if (submissionElem) {
+            //     const text = submissionElem.value;
+            //     Array.from(dataChannels.values()).forEach(channel => {
+            //         channel.send(text);
+            //     });
+            // }
         };
         window.beginRaft = function () {
             console.log('BEGIN RAFT');
         };
     }
+    function registerDataChannels(uuid, peerUuids, dataChannels, serverConnection, rpcReceive) {
+        // Create a RtcBidirectionalDataChannel for each discovered peer
+        // Send offers to each new peer via the signaling server
+        return peerUuids.map(function (peerUuid) {
+            var channel = new rtc_1.RtcBidirectionalDataChannel(uuid, peerUuid, serverConnection, {
+                channelOpened: function () { console.log("Opened channel for " + peerUuid); },
+                messageReceived: function (m) { rpcReceive(JSON.parse(m.data)); }
+            });
+            dataChannels.set(peerUuid, channel);
+            return channel;
+        });
+    }
 });
+// function configureRpcForPeer(uuid, peerUuid, dataChannels, delegate) {
+//     // const [rpcInvoke, rpcReceive]
+// }
