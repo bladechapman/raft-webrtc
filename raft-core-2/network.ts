@@ -8,6 +8,8 @@ export function broadcastRequestVoteRpc<T>(
     becomeFollowerCallback,
     rpcInvoke
 ) {
+    console.log('BROADCAST REQUEST VOTE');
+
     const node = getNode();
 
     const {
@@ -57,6 +59,7 @@ export function receiveRequestVoteRpc<T>(
     payload: any,
     becomeFollowerCallback  // HACK
 ) {
+    console.log('RECEIVE REQUEST VOTE');
     const node = getNode();
     const {
         currentTerm,
@@ -104,7 +107,7 @@ export function broadcastAppendEntriesRpc<T>(
     becomeFollowerCallback,
     rpcInvoke
 ) {
-    // console.log(getNode().persistentState.id, 'broadcastAppend');
+    console.log('BROADCAST APPEND');
 
     const node = getNode();
     const { nextIndices } = node.leaderState;
@@ -261,7 +264,7 @@ export function receiveAppendEntriesRpc<T>(
     payload: any,
     becomeFollowerCallback  // hack
 ) {
-    console.log(getNode().persistentState.id, 'receiveAppend', getNode().mode);
+    console.log('RECEIVE APPEND');
 
     const node = getNode();
 

@@ -42,7 +42,6 @@ export class RtcBidirectionalDataChannel {
     }
 
     send(payload: any) {
-        console.log('SENDING', payload);
         this.outgoingChannel.send(payload);
     }
 

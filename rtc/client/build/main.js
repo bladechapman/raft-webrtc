@@ -70,7 +70,6 @@ define("rtc/client/src/rtc", ["require", "exports", "rtc/client/src/config/ice"]
                 .then(this.setLocalDescription.bind(this))["catch"](function () { });
         };
         RtcBidirectionalDataChannel.prototype.send = function (payload) {
-            console.log('SENDING', payload);
             this.outgoingChannel.send(payload);
         };
         RtcBidirectionalDataChannel.prototype.setLocalDescription = function (description) {
@@ -417,6 +416,7 @@ define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "ra
     exports.__esModule = true;
     // import { rpcInvoke } from '../raft-draft/rpc';
     function broadcastRequestVoteRpc(getNode, setNode, becomeFollowerCallback, rpcInvoke) {
+        console.log('BROADCAST REQUEST VOTE');
         var node = getNode();
         var _a = node.persistentState, currentTerm = _a.currentTerm, id = _a.id, log = _a.log;
         var payload = {
@@ -448,6 +448,7 @@ define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "ra
     exports.broadcastRequestVoteRpc = broadcastRequestVoteRpc;
     function receiveRequestVoteRpc(getNode, setNode, payload, becomeFollowerCallback // HACK
     ) {
+        console.log('RECEIVE REQUEST VOTE');
         var node = getNode();
         var _a = node.persistentState, currentTerm = _a.currentTerm, votedFor = _a.votedFor, log = _a.log;
         var proposedTerm = payload.term, candidateId = payload.candidateId, candidateLastLogIndex = payload.lastLogIndex, candidateLastLogTerm = payload.lastLogTerm;
@@ -471,7 +472,7 @@ define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "ra
     }
     exports.receiveRequestVoteRpc = receiveRequestVoteRpc;
     function broadcastAppendEntriesRpc(getNode, setNode, proposedCommands, becomeFollowerCallback, rpcInvoke) {
-        // console.log(getNode().persistentState.id, 'broadcastAppend');
+        console.log('BROADCAST APPEND');
         var node = getNode();
         var nextIndices = node.leaderState.nextIndices;
         var _a = node.persistentState, leaderLog = _a.log, currentTerm = _a.currentTerm;
@@ -581,7 +582,7 @@ define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "ra
     }
     function receiveAppendEntriesRpc(getNode, setNode, payload, becomeFollowerCallback // hack
     ) {
-        console.log(getNode().persistentState.id, 'receiveAppend', getNode().mode);
+        console.log('RECEIVE APPEND');
         var node = getNode();
         var leaderTerm = payload.term, prevLogIndex = payload.prevLogIndex, prevLogTerm = payload.prevLogTerm, entries = payload.entries, receivedLeaderCommit = payload.leaderCommit;
         var _a = node.persistentState, receiverTerm = _a.currentTerm, log = _a.log, id = _a.id;
