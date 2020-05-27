@@ -22,42 +22,6 @@ var __extends = (this && this.__extends) || (function () {
         d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
     };
 })();
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-var __generator = (this && this.__generator) || function (thisArg, body) {
-    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
-    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
-    function verb(n) { return function (v) { return step([n, v]); }; }
-    function step(op) {
-        if (f) throw new TypeError("Generator is already executing.");
-        while (_) try {
-            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
-            if (y = 0, t) op = [op[0] & 2, t.value];
-            switch (op[0]) {
-                case 0: case 1: t = op; break;
-                case 4: _.label++; return { value: op[1], done: false };
-                case 5: _.label++; y = op[1]; op = [0]; continue;
-                case 7: op = _.ops.pop(); _.trys.pop(); continue;
-                default:
-                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
-                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
-                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
-                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
-                    if (t[2]) _.ops.pop();
-                    _.trys.pop(); continue;
-            }
-            op = body.call(thisArg, _);
-        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
-        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
-    }
-};
 var __spreadArrays = (this && this.__spreadArrays) || function () {
     for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
     for (var r = Array(s), k = 0, i = 0; i < il; i++)
@@ -236,10 +200,9 @@ define("raft-core-2/raftNode", ["require", "exports"], function (require, export
             this.leaderState = leaderState;
             this.mode = mode;
         }
-        RaftNode["default"] = function (maybeId) {
+        RaftNode["default"] = function (id) {
             var baseEntry = new LogEntry(null, 0, 0);
             var log = new Log([baseEntry]);
-            var id = maybeId === undefined ? Math.random() : maybeId;
             var persistentState = new PersistentState(log, 0, null, id);
             var volatileState = new VolatileState(0, 0);
             var leaderState = new LeaderState({}, {});
@@ -449,125 +412,11 @@ define("raft-draft/lib", ["require", "exports"], function (require, exports) {
     }
     exports.debug = debug;
 });
-define("raft-draft/rpc", ["require", "exports"], function (require, exports) {
+define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "raft-draft/lib"], function (require, exports, raftNode_1, lib_1) {
     "use strict";
     exports.__esModule = true;
-    var rpcGroup = {};
-    function rpcInvoke(invokerId, receiverId, method, args) {
-        var callId = Math.random(); // TODO: improve this
-        var invokePayload = {
-            method: method,
-            args: JSON.stringify(args),
-            invokerId: invokerId,
-            callId: callId,
-            __invoke: true
-        };
-        var responsePromise = new Promise(function (res, rej) {
-            // TODO: Add timeout?
-            rpcGroup[invokerId].callIds[callId] = [res, rej];
-        });
-        // Send to receiverId with invokePayload
-        fakeSend(receiverId, invokePayload);
-        return responsePromise;
-    }
-    exports.rpcInvoke = rpcInvoke;
-    function rpcReceive(receiverId, senderPayload) {
-        return __awaiter(this, void 0, void 0, function () {
-            var isInvocation;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0:
-                        isInvocation = senderPayload.__invoke === true;
-                        if (!isInvocation) return [3 /*break*/, 2];
-                        return [4 /*yield*/, rpcRespond(receiverId, senderPayload)];
-                    case 1:
-                        _a.sent();
-                        return [3 /*break*/, 3];
-                    case 2:
-                        rpcHandleResponse(senderPayload);
-                        _a.label = 3;
-                    case 3: return [2 /*return*/];
-                }
-            });
-        });
-    }
-    var delegate = {};
-    function rpcRespond(receiverId, senderPayload) {
-        return __awaiter(this, void 0, void 0, function () {
-            var method, argsString, invokerId, callId, args, result, responsePayload;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0:
-                        method = senderPayload.method, argsString = senderPayload.args, invokerId = senderPayload.invokerId, callId = senderPayload.callId;
-                        args = JSON.parse(argsString);
-                        return [4 /*yield*/, rpcGroup[receiverId].delegate[method].apply(null, args)];
-                    case 1:
-                        result = _a.sent();
-                        responsePayload = {
-                            result: result,
-                            invokerId: invokerId,
-                            callId: callId,
-                            __response: true
-                        };
-                        // send to senderId with responsePayload
-                        fakeSend(invokerId, responsePayload);
-                        return [2 /*return*/];
-                }
-            });
-        });
-    }
-    function rpcHandleResponse(responsePayload) {
-        var result = responsePayload.result, invokerId = responsePayload.invokerId, callId = responsePayload.callId;
-        // extract the result from the payload
-        var _a = rpcGroup[invokerId].callIds[callId], res = _a[0], rej = _a[1];
-        delete rpcGroup[invokerId].callIds[callId];
-        // resolve the promise with the result
-        res(result);
-    }
-    function rpcRegister(delegate) {
-        var id = Math.random();
-        rpcGroup[id] = {
-            memberId: id,
-            delegate: delegate,
-            // Handles for when receiving a response
-            callIds: {}
-        };
-        return [id, rpcGroup];
-    }
-    exports.rpcRegister = rpcRegister;
-    function fakeSend(receiverId, payload) {
-        setTimeout(function () {
-            fakeReceive(receiverId, payload);
-        }, Math.random() * 100 + 100);
-    }
-    function fakeReceive(id, payload) {
-        rpcReceive(id, payload);
-    }
-});
-// if (require.main === module) {
-//     const idA = rpcRegister({
-//         hello: (x) => {
-//             console.log(`Hello ${x}!`);
-//             return 'Goodbye';
-//         }
-//     });
-//     const idB = rpcRegister({
-//         speak: (y) => {
-//             console.log(`Bark ${y}`);
-//             return true;
-//         }
-//     });
-//     rpcInvoke(idA, idB, 'speak', ['test']).then((r) => {
-//         console.log(r);
-//         rpcInvoke(idB, idA, 'hello', ['A']).then((r) => {
-//             console.log(r);
-//         });
-//     });
-// }
-define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "raft-draft/lib", "raft-draft/rpc"], function (require, exports, raftNode_1, lib_1, rpc_1) {
-    "use strict";
-    exports.__esModule = true;
-    function broadcastRequestVoteRpc(getNode, setNode, becomeFollowerCallback) {
+    // import { rpcInvoke } from '../raft-draft/rpc';
+    function broadcastRequestVoteRpc(getNode, setNode, becomeFollowerCallback, rpcInvoke) {
         var node = getNode();
         var _a = node.persistentState, currentTerm = _a.currentTerm, id = _a.id, log = _a.log;
         var payload = {
@@ -578,7 +427,7 @@ define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "ra
         };
         var group = Object.keys(node.leaderState.nextIndices);
         var promises = group.map(function (peerId) {
-            return rpc_1.rpcInvoke(id, peerId, "receiveRequestVote", [payload]).then(function (result) {
+            return rpcInvoke(peerId, "receiveRequestVote", [payload]).then(function (result) {
                 var term = result.term;
                 var node = getNode();
                 if (term > node.persistentState.currentTerm) {
@@ -621,7 +470,7 @@ define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "ra
         };
     }
     exports.receiveRequestVoteRpc = receiveRequestVoteRpc;
-    function broadcastAppendEntriesRpc(getNode, setNode, proposedCommands, becomeFollowerCallback) {
+    function broadcastAppendEntriesRpc(getNode, setNode, proposedCommands, becomeFollowerCallback, rpcInvoke) {
         // console.log(getNode().persistentState.id, 'broadcastAppend');
         var node = getNode();
         var nextIndices = node.leaderState.nextIndices;
@@ -630,7 +479,7 @@ define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "ra
         var newNode = proposedCommands.reduce(function (acc, c) { return acc.command(c); }, node);
         setNode(newNode);
         var promises = Object.keys(nextIndices).map(function (followerId) {
-            return sendAppendEntries(parseFloat(followerId), getNode, setNode, proposedCommands, becomeFollowerCallback);
+            return sendAppendEntries(followerId, getNode, setNode, proposedCommands, becomeFollowerCallback, rpcInvoke);
         });
         var condition = function (resolutions) {
             var successes = Array.from(resolutions.values()).reduce(function (acc, resolution) {
@@ -658,7 +507,7 @@ define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "ra
         });
     }
     exports.broadcastAppendEntriesRpc = broadcastAppendEntriesRpc;
-    function sendAppendEntries(followerId, getNode, setNode, proposedCommands, becomeFollowerCallback) {
+    function sendAppendEntries(followerId, getNode, setNode, proposedCommands, becomeFollowerCallback, rpcInvoke) {
         var node = getNode();
         if (node.mode !== raftNode_1.Mode.Leader)
             return new Promise(function (res, rej) { return res('TEMP IMPL: NO LONGER LEADER'); });
@@ -681,7 +530,7 @@ define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "ra
             entries: newEntriesForFollower,
             leaderCommit: leaderCommit
         };
-        return rpc_1.rpcInvoke(leaderId, followerId, 'receiveAppendEntries', [payload])
+        return rpcInvoke(followerId, 'receiveAppendEntries', [payload])
             .then(function (result) {
             var currentNode = getNode();
             var currentTerm = currentNode.persistentState.currentTerm;
@@ -719,7 +568,7 @@ define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "ra
                 //     "Next index < 0"
                 // );
                 setNode(currentNode.newNextIndex(followerId, newNextIndex));
-                return sendAppendEntries(followerId, getNode, setNode, proposedCommands, becomeFollowerCallback);
+                return sendAppendEntries(followerId, getNode, setNode, proposedCommands, becomeFollowerCallback, rpcInvoke);
             }
             // }
             // else {
@@ -765,7 +614,7 @@ define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "ra
     }
     exports.receiveAppendEntriesRpc = receiveAppendEntriesRpc;
 });
-define("raft-core-2/api", ["require", "exports", "raft-core-2/raftNode", "raft-core-2/network", "raft-draft/rpc"], function (require, exports, raftNode_2, network_1, rpc_2) {
+define("raft-core-2/api", ["require", "exports", "raft-core-2/raftNode", "raft-core-2/network", "rpc/rpc"], function (require, exports, raftNode_2, network_1, rpc_1) {
     "use strict";
     exports.__esModule = true;
     function useTimer() {
@@ -780,12 +629,8 @@ define("raft-core-2/api", ["require", "exports", "raft-core-2/raftNode", "raft-c
         }
         return [setTimer, clearTimer];
     }
-    function useNode() {
+    function useNode(uuid, sendSerialized) {
         function setNode(newNode) {
-            // console.log(
-            //     newNode.persistentState.id,
-            //     newNode.persistentState.log.entries
-            // );
             node = newNode;
             return node;
         }
@@ -795,45 +640,43 @@ define("raft-core-2/api", ["require", "exports", "raft-core-2/raftNode", "raft-c
         var _a = useTimer(), setFollowerTimer = _a[0], clearFollowerTimer = _a[1];
         var _b = useTimer(), setCandidateTimer = _b[0], clearCandidateTimer = _b[1];
         var _c = useTimer(), setLeaderTimer = _c[0], clearLeaderTimer = _c[1];
-        var rpcId = rpc_2.rpcRegister({
+        var _d = rpc_1.rpcRegister(uuid, sendSerialized, {
             'receiveRequestVote': function (payload) {
                 return network_1.receiveRequestVoteRpc(getNode, setNode, payload, function () {
-                    step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], 'BecomeFollower');
+                    step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], [rpcInvoke, rpcReceive], 'BecomeFollower');
                 });
             },
             'receiveAppendEntries': function (payload) {
                 clearFollowerTimer();
                 var r = network_1.receiveAppendEntriesRpc(getNode, setNode, payload, function () {
-                    step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], 'BecomeFollower');
+                    step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], [rpcInvoke, rpcReceive], 'BecomeFollower');
                 });
-                // console.log(
-                //     getNode().persistentState.id,
-                //     getNode().persistentState.currentTerm,
-                //     getNode().persistentState.log.entries
-                // )
                 return r;
             }
-        })[0];
-        var node = raftNode_2.RaftNode["default"](rpcId);
+        }), rpcInvoke = _d[0], rpcReceive = _d[1];
+        var node = raftNode_2.RaftNode["default"](uuid);
         return [
             [getNode, setNode],
             [setFollowerTimer, clearFollowerTimer],
             [setCandidateTimer, clearCandidateTimer],
-            [setLeaderTimer, clearLeaderTimer]
+            [setLeaderTimer, clearLeaderTimer],
+            [rpcInvoke, rpcReceive]
         ];
     }
     exports.useNode = useNode;
-    function step(_a, _b, _c, _d, event) {
+    function step(_a, _b, _c, _d, _e, event) {
         var getNode = _a[0], setNode = _a[1];
         var setFollowerTimer = _b[0], clearFollowerTimer = _b[1];
         var setCandidateTimer = _c[0], clearCandidateTimer = _c[1];
         var setLeaderTimer = _d[0], clearLeaderTimer = _d[1];
+        var rpcInvoke = _e[0], rpcReceive = _e[1];
         var mode = getNode().mode;
         var args = [
             [getNode, setNode],
             [setFollowerTimer, clearFollowerTimer],
             [setCandidateTimer, clearCandidateTimer],
             [setLeaderTimer, clearLeaderTimer],
+            [rpcInvoke, rpcReceive]
         ];
         console.log(getNode().persistentState.id, event);
         if (event === 'BecomeFollower')
@@ -850,32 +693,35 @@ define("raft-core-2/api", ["require", "exports", "raft-core-2/raftNode", "raft-c
             throw new Error("step: Invalid event " + event);
     }
     exports.step = step;
-    function becomeFollower(_a, _b, _c, _d) {
+    function becomeFollower(_a, _b, _c, _d, _e) {
         var getNode = _a[0], setNode = _a[1];
         var setFollowerTimer = _b[0], clearFollowerTimer = _b[1];
         var setCandidateTimer = _c[0], clearCandidateTimer = _c[1];
         var setLeaderTimer = _d[0], clearLeaderTimer = _d[1];
+        var rpcInvoke = _e[0], rpcReceive = _e[1];
         var node = getNode();
         clearLeaderTimer();
         clearCandidateTimer();
         clearFollowerTimer();
         setNode(node.becomeFollower());
         setFollowerTimer(function () {
-            step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], 'FollowerTimeout');
+            step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], [rpcInvoke, rpcReceive], 'FollowerTimeout');
         });
     }
-    function followerTimeout(_a, _b, _c, _d) {
+    function followerTimeout(_a, _b, _c, _d, _e) {
         var getNode = _a[0], setNode = _a[1];
         var setFollowerTimer = _b[0], clearFollowerTimer = _b[1];
         var setCandidateTimer = _c[0], clearCandidateTimer = _c[1];
         var setLeaderTimer = _d[0], clearLeaderTimer = _d[1];
-        step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], 'BecomeCandidate');
+        var rpcInvoke = _e[0], rpcReceive = _e[1];
+        step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], [rpcInvoke, rpcReceive], 'BecomeCandidate');
     }
-    function becomeCandidate(_a, _b, _c, _d) {
+    function becomeCandidate(_a, _b, _c, _d, _e) {
         var getNode = _a[0], setNode = _a[1];
         var setFollowerTimer = _b[0], clearFollowerTimer = _b[1];
         var setCandidateTimer = _c[0], clearCandidateTimer = _c[1];
         var setLeaderTimer = _d[0], clearLeaderTimer = _d[1];
+        var rpcInvoke = _e[0], rpcReceive = _e[1];
         var node = getNode();
         clearLeaderTimer();
         clearCandidateTimer();
@@ -885,42 +731,44 @@ define("raft-core-2/api", ["require", "exports", "raft-core-2/raftNode", "raft-c
             .vote(null)
             .becomeCandidate());
         console.log("NEW CANDIDATE: " + getNode().persistentState.id, getNode().persistentState.currentTerm);
-        network_1.broadcastRequestVoteRpc(getNode, setNode, function () { step.apply(null, __spreadArrays(Array.from(arguments), ['BecomeFollower'])); }).then(function (majorityGranted) {
+        network_1.broadcastRequestVoteRpc(getNode, setNode, function () { step.apply(null, __spreadArrays(Array.from(arguments), ['BecomeFollower'])); }, rpcInvoke).then(function (majorityGranted) {
             if (majorityGranted) {
                 setNode(getNode().initializeNextIndices());
                 console.log("NEW LEADER: " + getNode().persistentState.id, getNode().persistentState.currentTerm);
-                step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], 'BecomeLeader');
+                step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], [rpcInvoke, rpcReceive], 'BecomeLeader');
             }
         });
         setCandidateTimer(function () {
-            step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], 'CandidateTimeout');
+            step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], [rpcInvoke, rpcReceive], 'CandidateTimeout');
         });
     }
-    function candidateTimeout(_a, _b, _c, _d) {
+    function candidateTimeout(_a, _b, _c, _d, _e) {
         var getNode = _a[0], setNode = _a[1];
         var setFollowerTimer = _b[0], clearFollowerTimer = _b[1];
         var setCandidateTimer = _c[0], clearCandidateTimer = _c[1];
         var setLeaderTimer = _d[0], clearLeaderTimer = _d[1];
-        step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], 'BecomeCandidate');
+        var rpcInvoke = _e[0], rpcReceive = _e[1];
+        step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], [rpcInvoke, rpcReceive], 'BecomeCandidate');
     }
-    function becomeLeader(_a, _b, _c, _d) {
+    function becomeLeader(_a, _b, _c, _d, _e) {
         var getNode = _a[0], setNode = _a[1];
         var setFollowerTimer = _b[0], clearFollowerTimer = _b[1];
         var setCandidateTimer = _c[0], clearCandidateTimer = _c[1];
         var setLeaderTimer = _d[0], clearLeaderTimer = _d[1];
+        var rpcInvoke = _e[0], rpcReceive = _e[1];
         var node = getNode();
         clearLeaderTimer();
         clearCandidateTimer();
         clearFollowerTimer();
         setNode(node.becomeLeader());
         // TODO: fix the heartbeat type
-        network_1.broadcastAppendEntriesRpc(getNode, setNode, ['hearbeat'], function () { step.apply(null, __spreadArrays(Array.from(arguments), ['BecomeFollower'])); });
+        network_1.broadcastAppendEntriesRpc(getNode, setNode, ['hearbeat'], function () { step.apply(null, __spreadArrays(Array.from(arguments), ['BecomeFollower'])); }, rpcInvoke);
         setLeaderTimer(function () {
-            step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], 'BecomeLeader');
+            step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], [rpcInvoke, rpcReceive], 'BecomeLeader');
         }, 1300 + Math.random() * 200);
     }
 });
-define("rtc/client/src/main", ["require", "exports", "rtc/client/src/lib/uuid", "rtc/client/src/rtc", "rpc/rpc"], function (require, exports, uuid_1, rtc_1, rpc_3) {
+define("rtc/client/src/main", ["require", "exports", "rtc/client/src/lib/uuid", "rtc/client/src/rtc", "raft-core-2/api"], function (require, exports, uuid_1, rtc_1, api_1) {
     "use strict";
     exports.__esModule = true;
     document.addEventListener('DOMContentLoaded', function () {
@@ -931,16 +779,27 @@ define("rtc/client/src/main", ["require", "exports", "rtc/client/src/lib/uuid", 
         var uuid = uuid_1.createUUID();
         var serverConnection = new WebSocket('wss://' + window.location.hostname + ':8443');
         var dataChannels = new Map();
-        var _a = rpc_3.rpcRegister(uuid, function (payload) {
+        var nodeFns = api_1.useNode(uuid, function (payload) {
             var target = payload.target;
             var channel = dataChannels.get(target);
             channel.send(JSON.stringify(payload));
-        }, {
-            printAndAcknowledge: function (p) {
-                console.log("RECEIVED, " + p);
-                return "ACK " + uuid;
-            }
-        }), rpcInvoke = _a[0], rpcReceive = _a[1];
+        });
+        var _a = nodeFns[0], getNode = _a[0], setNode = _a[1];
+        var _b = nodeFns[4], rpcInvoke = _b[0], rpcReceive = _b[1];
+        // const [rpcInvoke, rpcReceive] = rpcRegister(
+        //     uuid, 
+        //     (payload) => {
+        //         const target = payload.target;
+        //         const channel = dataChannels.get(target);
+        //         channel.send(JSON.stringify(payload));
+        //     },
+        //     {
+        //         printAndAcknowledge: function(p) {
+        //             console.log(`RECEIVED, ${p}`);
+        //             return `ACK ${uuid}`;
+        //         }
+        //     }
+        // )
         serverConnection.onmessage = function (message) {
             var parsed = JSON.parse(message.data);
             if (parsed.discover) {
@@ -989,16 +848,25 @@ define("rtc/client/src/main", ["require", "exports", "rtc/client/src/lib/uuid", 
                     });
                 });
             }
-            // const submissionElem = document.getElementById('submission') as HTMLInputElement;
-            // if (submissionElem) {
-            //     const text = submissionElem.value;
-            //     Array.from(dataChannels.values()).forEach(channel => {
-            //         channel.send(text);
-            //     });
-            // }
         };
         window.beginRaft = function () {
+            window.call = function () { };
+            window.send = function () { };
             console.log('BEGIN RAFT');
+            window.handleBegin();
+            window.broadcastBegin();
+        };
+        window.broadcastBegin = function () {
+            Array.from(dataChannels.values()).forEach(function (channel) {
+                channel.send(JSON.stringify({ raftBegin: true }));
+            });
+        };
+        window.handleBegin = function () {
+            console.log('BEGINNING');
+            Array.from(dataChannels.keys()).forEach(function (peerId) {
+                setNode(getNode().newNextIndex(peerId, 1));
+            });
+            setTimeout(function () { api_1.step.apply(null, __spreadArrays(nodeFns, ['BecomeFollower'])); }, 2500);
         };
     }
     function registerDataChannels(uuid, peerUuids, dataChannels, serverConnection, rpcReceive) {
@@ -1007,13 +875,17 @@ define("rtc/client/src/main", ["require", "exports", "rtc/client/src/lib/uuid", 
         return peerUuids.map(function (peerUuid) {
             var channel = new rtc_1.RtcBidirectionalDataChannel(uuid, peerUuid, serverConnection, {
                 channelOpened: function () { console.log("Opened channel for " + peerUuid); },
-                messageReceived: function (m) { rpcReceive(JSON.parse(m.data)); }
+                messageReceived: function (m) {
+                    var parsed = JSON.parse(m.data);
+                    if (parsed.raftBegin) {
+                        window.handleBegin();
+                    }
+                    else
+                        rpcReceive(JSON.parse(m.data));
+                }
             });
             dataChannels.set(peerUuid, channel);
             return channel;
         });
     }
 });
-// function configureRpcForPeer(uuid, peerUuid, dataChannels, delegate) {
-//     // const [rpcInvoke, rpcReceive]
-// }

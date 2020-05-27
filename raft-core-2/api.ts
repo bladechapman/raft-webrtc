@@ -5,7 +5,8 @@ import {
     broadcastAppendEntriesRpc,
     receiveAppendEntriesRpc
 } from './network';
-import { rpcRegister } from '../raft-draft/rpc';
+// import { rpcRegister } from '../raft-draft/rpc';
+import { rpcRegister } from '../rpc/rpc';
 
 
 function useTimer():
@@ -26,21 +27,20 @@ function useTimer():
     return [setTimer, clearTimer];
 }
 
-export function useNode(): [
+export function useNode(
+    uuid: string,
+    sendSerialized
+): [
     [
         () => RaftNode<string>,
         (newNode: RaftNode<string>) => RaftNode<string>
     ],
     [(callback: any) => void, () => void],
     [(callback: any) => void, () => void],
-    [(callback: any) => void, () => void]
+    [(callback: any) => void, () => void],
+    [any, any]
 ] {
     function setNode(newNode: RaftNode<string>) {
-        // console.log(
-        //     newNode.persistentState.id,
-        //     newNode.persistentState.log.entries
-        // );
-
         node = newNode;
         return node;
     }
@@ -54,61 +54,61 @@ export function useNode(): [
     const [setCandidateTimer, clearCandidateTimer] = useTimer();
     const [setLeaderTimer, clearLeaderTimer] = useTimer();
 
+    const [rpcInvoke, rpcReceive] = rpcRegister(
+        uuid,
+        sendSerialized,
+        {
+            'receiveRequestVote': (payload) => {
+                return receiveRequestVoteRpc(
+                    getNode,
+                    setNode,
+                    payload,
+                    () => {
+                        step(
+                            [getNode, setNode],
+                            [setFollowerTimer, clearFollowerTimer],
+                            [setCandidateTimer, clearCandidateTimer],
+                            [setLeaderTimer, clearLeaderTimer],
+                            [rpcInvoke, rpcReceive],
+                            'BecomeFollower'
+                        )
+                    }
+                );
+            },
 
-    const [rpcId] = rpcRegister({
-        'receiveRequestVote': (payload) => {
-            return receiveRequestVoteRpc(
-                getNode,
-                setNode,
-                payload,
-                () => {
-                    step(
-                        [getNode, setNode],
-                        [setFollowerTimer, clearFollowerTimer],
-                        [setCandidateTimer, clearCandidateTimer],
-                        [setLeaderTimer, clearLeaderTimer],
-                        'BecomeFollower'
-                    )
-                }
-            );
-        },
 
+            'receiveAppendEntries': (payload) => {
+                clearFollowerTimer();
 
-        'receiveAppendEntries': (payload) => {
-            clearFollowerTimer();
+                const r = receiveAppendEntriesRpc(
+                    getNode,
+                    setNode,
+                    payload,
+                    () => {
+                        step(
+                            [getNode, setNode],
+                            [setFollowerTimer, clearFollowerTimer],
+                            [setCandidateTimer, clearCandidateTimer],
+                            [setLeaderTimer, clearLeaderTimer],
+                            [rpcInvoke, rpcReceive],
+                            'BecomeFollower',
+                        )
+                    }
+                );
 
-            const r = receiveAppendEntriesRpc(
-                getNode,
-                setNode,
-                payload,
-                () => {
-                    step(
-                        [getNode, setNode],
-                        [setFollowerTimer, clearFollowerTimer],
-                        [setCandidateTimer, clearCandidateTimer],
-                        [setLeaderTimer, clearLeaderTimer],
-                        'BecomeFollower'
-                    )
-                }
-            );
-
-            // console.log(
-            //     getNode().persistentState.id,
-            //     getNode().persistentState.currentTerm,
-            //     getNode().persistentState.log.entries
-            // )
-
-            return r;
+                return r;
+            }
         }
-    });
+    );
 
-    let node = RaftNode.default<string>(rpcId);
+    let node = RaftNode.default<string>(uuid);
 
     return [
         [getNode, setNode],
         [setFollowerTimer, clearFollowerTimer],
         [setCandidateTimer, clearCandidateTimer],
-        [setLeaderTimer, clearLeaderTimer]
+        [setLeaderTimer, clearLeaderTimer],
+        [rpcInvoke, rpcReceive]
     ];
 }
 
@@ -117,6 +117,7 @@ export function step(
     [setFollowerTimer, clearFollowerTimer],
     [setCandidateTimer, clearCandidateTimer],
     [setLeaderTimer, clearLeaderTimer],
+    [rpcInvoke, rpcReceive],
     event
 ) {
     const { mode } = getNode();
@@ -125,6 +126,7 @@ export function step(
         [setFollowerTimer, clearFollowerTimer],
         [setCandidateTimer, clearCandidateTimer],
         [setLeaderTimer, clearLeaderTimer],
+        [rpcInvoke, rpcReceive]
     ];
 
     console.log(getNode().persistentState.id, event);
@@ -143,6 +145,7 @@ function becomeFollower(
     [setFollowerTimer, clearFollowerTimer],
     [setCandidateTimer, clearCandidateTimer],
     [setLeaderTimer, clearLeaderTimer],
+    [rpcInvoke, rpcReceive]
 ) {
     const node = getNode();
     clearLeaderTimer();
@@ -156,6 +159,7 @@ function becomeFollower(
             [setFollowerTimer, clearFollowerTimer],
             [setCandidateTimer, clearCandidateTimer],
             [setLeaderTimer, clearLeaderTimer],
+            [rpcInvoke, rpcReceive],
             'FollowerTimeout'
         )
     });
@@ -166,12 +170,14 @@ function followerTimeout(
     [setFollowerTimer, clearFollowerTimer],
     [setCandidateTimer, clearCandidateTimer],
     [setLeaderTimer, clearLeaderTimer],
+    [rpcInvoke, rpcReceive]
 ) {
     step(
         [getNode, setNode],
         [setFollowerTimer, clearFollowerTimer],
         [setCandidateTimer, clearCandidateTimer],
         [setLeaderTimer, clearLeaderTimer],
+        [rpcInvoke, rpcReceive],
         'BecomeCandidate'
     );
 }
@@ -182,6 +188,7 @@ function becomeCandidate(
     [setFollowerTimer, clearFollowerTimer],
     [setCandidateTimer, clearCandidateTimer],
     [setLeaderTimer, clearLeaderTimer],
+    [rpcInvoke, rpcReceive]
 ) {
     const node = getNode();
     clearLeaderTimer();
@@ -199,7 +206,8 @@ function becomeCandidate(
     broadcastRequestVoteRpc(
         getNode,
         setNode,
-        function () { step.apply(null, [...Array.from(arguments), 'BecomeFollower']) }
+        function () { step.apply(null, [...Array.from(arguments), 'BecomeFollower']) },
+        rpcInvoke
     ).then(majorityGranted => {
         if (majorityGranted) {
             setNode(getNode().initializeNextIndices());
@@ -210,6 +218,7 @@ function becomeCandidate(
                 [setFollowerTimer, clearFollowerTimer],
                 [setCandidateTimer, clearCandidateTimer],
                 [setLeaderTimer, clearLeaderTimer],
+                [rpcInvoke, rpcReceive],
                 'BecomeLeader'
             );
         }
@@ -221,6 +230,7 @@ function becomeCandidate(
             [setFollowerTimer, clearFollowerTimer],
             [setCandidateTimer, clearCandidateTimer],
             [setLeaderTimer, clearLeaderTimer],
+            [rpcInvoke, rpcReceive],
             'CandidateTimeout'
         )
     });
@@ -232,12 +242,14 @@ function candidateTimeout(
     [setFollowerTimer, clearFollowerTimer],
     [setCandidateTimer, clearCandidateTimer],
     [setLeaderTimer, clearLeaderTimer],
+    [rpcInvoke, rpcReceive]
 ) {
     step(
         [getNode, setNode],
         [setFollowerTimer, clearFollowerTimer],
         [setCandidateTimer, clearCandidateTimer],
         [setLeaderTimer, clearLeaderTimer],
+        [rpcInvoke, rpcReceive],
         'BecomeCandidate'
     );
 }
@@ -248,6 +260,7 @@ function becomeLeader(
     [setFollowerTimer, clearFollowerTimer],
     [setCandidateTimer, clearCandidateTimer],
     [setLeaderTimer, clearLeaderTimer],
+    [rpcInvoke, rpcReceive]
 ) {
     const node = getNode();
     clearLeaderTimer();
@@ -260,7 +273,8 @@ function becomeLeader(
         getNode,
         setNode,
         ['hearbeat'],
-        function () { step.apply(null, [...Array.from(arguments), 'BecomeFollower']) }
+        function () { step.apply(null, [...Array.from(arguments), 'BecomeFollower']) },
+        rpcInvoke
     )
 
     setLeaderTimer(() => {
@@ -269,6 +283,7 @@ function becomeLeader(
             [setFollowerTimer, clearFollowerTimer],
             [setCandidateTimer, clearCandidateTimer],
             [setLeaderTimer, clearLeaderTimer],
+            [rpcInvoke, rpcReceive],
             'BecomeLeader'
         )
     }, 1300 + Math.random() * 200);

@@ -1,11 +1,12 @@
 import { RaftNode, Mode } from './raftNode';
 import { RaftPromise } from '../raft-draft/lib';
-import { rpcInvoke } from '../raft-draft/rpc';
+// import { rpcInvoke } from '../raft-draft/rpc';
 
 export function broadcastRequestVoteRpc<T>(
     getNode: () => RaftNode<T>,
     setNode: (newNode: RaftNode<T>) => RaftNode<T>,
-    becomeFollowerCallback
+    becomeFollowerCallback,
+    rpcInvoke
 ) {
     const node = getNode();
 
@@ -24,7 +25,7 @@ export function broadcastRequestVoteRpc<T>(
 
     const group = Object.keys(node.leaderState.nextIndices);
     const promises = group.map(peerId => {
-        return rpcInvoke(id, peerId, "receiveRequestVote", [payload]).then((result: any) => {
+        return rpcInvoke(peerId, "receiveRequestVote", [payload]).then((result: any) => {
             const { term } = result;
             const node = getNode();
             if (term > node.persistentState.currentTerm) {
@@ -100,7 +101,8 @@ export function broadcastAppendEntriesRpc<T>(
     getNode: () => RaftNode<T>,
     setNode: (newNode: RaftNode<T>) => RaftNode<T>,
     proposedCommands: T[],
-    becomeFollowerCallback
+    becomeFollowerCallback,
+    rpcInvoke
 ) {
     // console.log(getNode().persistentState.id, 'broadcastAppend');
 
@@ -116,7 +118,7 @@ export function broadcastAppendEntriesRpc<T>(
     setNode(newNode);
 
     const promises = Object.keys(nextIndices).map(followerId => {
-        return sendAppendEntries(parseFloat(followerId), getNode, setNode, proposedCommands, becomeFollowerCallback);
+        return sendAppendEntries(followerId, getNode, setNode, proposedCommands, becomeFollowerCallback, rpcInvoke);
     });
 
     const condition = (resolutions) => {
@@ -150,11 +152,12 @@ export function broadcastAppendEntriesRpc<T>(
 
 
 function sendAppendEntries<T>(
-    followerId: number,
+    followerId: string,
     getNode: () => RaftNode<T>,
     setNode: (newNode: RaftNode<T>) => RaftNode<T>,
     proposedCommands: T[],
-    becomeFollowerCallback
+    becomeFollowerCallback,
+    rpcInvoke
 ) {
     const node = getNode();
 
@@ -194,7 +197,7 @@ function sendAppendEntries<T>(
         leaderCommit
     };
 
-    return rpcInvoke(leaderId, followerId, 'receiveAppendEntries', [payload])
+    return rpcInvoke(followerId, 'receiveAppendEntries', [payload])
         .then((result: any) => {
             const currentNode = getNode();
             const currentTerm = currentNode.persistentState.currentTerm;
@@ -240,7 +243,7 @@ function sendAppendEntries<T>(
                     setNode(
                         currentNode.newNextIndex(followerId, newNextIndex)
                     );
-                    return sendAppendEntries(followerId, getNode, setNode, proposedCommands, becomeFollowerCallback);
+                    return sendAppendEntries(followerId, getNode, setNode, proposedCommands, becomeFollowerCallback, rpcInvoke);
                 }
             // }
             // else {

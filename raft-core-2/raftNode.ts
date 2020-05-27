@@ -23,10 +23,9 @@ export class RaftNode<T> {
         this.mode = mode;
     }
 
-    static default<T>(maybeId?: number) {
+    static default<T>(id: string) {
         const baseEntry = new LogEntry<T>(null, 0, 0);
         const log = new Log<T>([baseEntry]);
-        const id = maybeId === undefined ? Math.random() : maybeId;
         const persistentState = new PersistentState<T>(log, 0, null, id);
         const volatileState = new VolatileState(0, 0);
         const leaderState = new LeaderState({}, {});
@@ -95,7 +94,7 @@ export class RaftNode<T> {
         );
     }
 
-    newNextIndex(peerId: number, newNextIndex: number) {
+    newNextIndex(peerId: string, newNextIndex: number) {
         return new RaftNode(
             this.persistentState,
             this.volatileState,
@@ -109,11 +108,11 @@ export class RaftNode<T> {
         const lastLogIndex = this.persistentState.log.getLastEntry().index;
 
         return Object.keys(nextIndices).reduce((acc, peerId) => {
-            return acc.newNextIndex(peerId as unknown as number, lastLogIndex);
+            return acc.newNextIndex(peerId, lastLogIndex);
         }, this)
     }
 
-    newMatchIndex(peerId: number, newMatchIndex: number) {
+    newMatchIndex(peerId: string, newMatchIndex: number) {
         return new RaftNode(
             this.persistentState,
             this.volatileState,
@@ -244,14 +243,14 @@ class Log<T> {
 class PersistentState<T> {
     readonly currentTerm: number;
     readonly votedFor: number | null;
-    readonly id: number;
+    readonly id: string;
     readonly log: Log<T>;
 
     constructor(
         log: Log<T>,
         term: number,
         vote: number | null,
-        id: number,
+        id: string,
     ) {
         this.currentTerm = term;
         this.votedFor = vote;
@@ -326,22 +325,22 @@ class VolatileState {
 
 
 class LeaderState {
-    readonly nextIndices: Record<number, number | undefined>;
-    readonly matchIndices: Record<number, number | undefined>;
+    readonly nextIndices: Record<string, number | undefined>;
+    readonly matchIndices: Record<string, number | undefined>;
 
     constructor(nextIndices, matchIndices) {
         this.nextIndices = nextIndices;
         this.matchIndices = matchIndices;
     }
 
-    newNextIndex(peerId: number, newNextIndex: number) {
+    newNextIndex(peerId: string, newNextIndex: number) {
         return new LeaderState(
             { ...this.nextIndices, [peerId]: newNextIndex },
             this.matchIndices
         );
     }
 
-    newMatchIndex(peerId: number, newMatchIndex: number) {
+    newMatchIndex(peerId: string, newMatchIndex: number) {
         return new LeaderState(
             this.nextIndices,
             { ...this.matchIndices, [peerId]: newMatchIndex }

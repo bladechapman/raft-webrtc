@@ -14,20 +14,32 @@ function main() {
     const serverConnection = new WebSocket('wss://' + window.location.hostname + ':8443');
     const dataChannels = new Map();
 
-    const [rpcInvoke, rpcReceive] = rpcRegister(
-        uuid, 
+    const nodeFns = useNode(
+        uuid,
         (payload) => {
             const target = payload.target;
             const channel = dataChannels.get(target);
             channel.send(JSON.stringify(payload));
-        },
-        {
-            printAndAcknowledge: function(p) {
-                console.log(`RECEIVED, ${p}`);
-                return `ACK ${uuid}`;
-            }
         }
     )
+
+    const [getNode, setNode] = nodeFns[0];
+    const [rpcInvoke, rpcReceive] = nodeFns[4];
+
+    // const [rpcInvoke, rpcReceive] = rpcRegister(
+    //     uuid, 
+    //     (payload) => {
+    //         const target = payload.target;
+    //         const channel = dataChannels.get(target);
+    //         channel.send(JSON.stringify(payload));
+    //     },
+    //     {
+    //         printAndAcknowledge: function(p) {
+    //             console.log(`RECEIVED, ${p}`);
+    //             return `ACK ${uuid}`;
+    //         }
+    //     }
+    // )
 
     serverConnection.onmessage = (message) => {
         const parsed = JSON.parse(message.data);
@@ -103,18 +115,30 @@ function main() {
                 });
             });
         }
-
-        // const submissionElem = document.getElementById('submission') as HTMLInputElement;
-        // if (submissionElem) {
-        //     const text = submissionElem.value;
-        //     Array.from(dataChannels.values()).forEach(channel => {
-        //         channel.send(text);
-        //     });
-        // }
     }
 
     (window as any).beginRaft = () => {
+        (window as any).call = () => {}
+        (window as any).send = () => {}
+
         console.log('BEGIN RAFT');
+        (window as any).handleBegin();
+        (window as any).broadcastBegin();
+    }
+
+    (window as any).broadcastBegin = () => {
+        Array.from(dataChannels.values()).forEach(channel => {
+            channel.send(JSON.stringify({ raftBegin: true }));
+        });
+    }
+
+    (window as any).handleBegin = () => {
+        console.log('BEGINNING');
+        Array.from(dataChannels.keys()).forEach(peerId => {
+            setNode(getNode().newNextIndex(peerId, 1))
+        });
+
+        setTimeout(() => { step.apply(null, [...nodeFns, 'BecomeFollower']) }, 2500);
     }
 }
 
@@ -134,7 +158,11 @@ function registerDataChannels(
             serverConnection,
             {
                 channelOpened: () => { console.log(`Opened channel for ${peerUuid}`) },
-                messageReceived: (m) => { rpcReceive(JSON.parse(m.data)) },
+                messageReceived: (m) => {
+                    const parsed = JSON.parse(m.data);
+                    if (parsed.raftBegin) { (window as any).handleBegin() }
+                    else rpcReceive(JSON.parse(m.data))
+                },
             }
         )
 
@@ -143,7 +171,3 @@ function registerDataChannels(
     });
 }
 
-
-// function configureRpcForPeer(uuid, peerUuid, dataChannels, delegate) {
-//     // const [rpcInvoke, rpcReceive]
-// }
