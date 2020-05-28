@@ -97,6 +97,10 @@ export function useNode(
                 );
 
                 return r;
+            },
+
+            'receiveClientRequest': (payload) => {
+
             }
         }
     );
@@ -138,6 +142,15 @@ export function step(
     else if (event === 'BecomeLeader') becomeLeader.apply(null, args);
     else 
         throw new Error(`step: Invalid event ${event}`);
+}
+
+export function handleClientRequest() {
+    // Forward the client request to the expected leader
+    //
+    // Expected leader handles client request, responds to initial request with whether or not
+    // it was actually the leader
+    //
+    // If not the actual leader, use the returned last known leader to try again. If no last known leader, pick a random node and try again.
 }
 
 function becomeFollower(
