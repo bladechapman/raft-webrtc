@@ -21,6 +21,7 @@ export function broadcastRequestVoteRpc<T>(
     const payload = {
         term: currentTerm,  // does this need to be incremented at this point?
         candidateId: id,
+        lastKnownLeader: node.volatileState.lastKnownLeader,
         lastLogIndex: log.getLastEntry().index,
         lastLogTerm: log.getLastEntry().termReceived
     }
@@ -28,10 +29,10 @@ export function broadcastRequestVoteRpc<T>(
     const group = Object.keys(node.leaderState.nextIndices);
     const promises = group.map(peerId => {
         return rpcInvoke(peerId, "receiveRequestVote", [payload]).then((result: any) => {
-            const { term } = result;
+            const { term, lastKnownLeader } = result;
             const node = getNode();
             if (term > node.persistentState.currentTerm) {
-                setNode(node.term(term));
+                setNode(node.term(term).discoverNewLeader(lastKnownLeader));
                 becomeFollowerCallback()
             }
 
@@ -94,9 +95,12 @@ export function receiveRequestVoteRpc<T>(
         // setNode(node.becomeFollower());
     }
 
+    console.log('LAST KNOWN LEADER', getNode().volatileState.lastKnownLeader);
+
     return {
         term: greaterTerm,
-        voteGranted
+        voteGranted,
+        lastKnownLeader: getNode().volatileState.lastKnownLeader
     }
 }
 
@@ -204,16 +208,14 @@ function sendAppendEntries<T>(
         .then((result: any) => {
             const currentNode = getNode();
             const currentTerm = currentNode.persistentState.currentTerm;
-            const { success, term } = result;
+            const { success, term, lastKnownLeader } = result;
 
             if (term > currentTerm) {
-                setNode(currentNode.term(term));
+                setNode(currentNode.term(term).discoverNewLeader(lastKnownLeader));
                 becomeFollowerCallback();
+                // TODO: I guess if we’re no longer leader, just throw out the response...
                 return 'TEMP IMPL: NO LONGER LEADER 2';
             }
-
-            // TODO: I guess if we’re no longer leader, just throw out the response...
-            // We’ll get back to that later, for now let’s just assume we’re still leader
 
             // if (Result.isOk(result)) {
                 // const { data } = result;
@@ -273,7 +275,8 @@ export function receiveAppendEntriesRpc<T>(
         prevLogIndex,
         prevLogTerm,
         entries,
-        leaderCommit: receivedLeaderCommit
+        leaderCommit: receivedLeaderCommit,
+        leaderId
     } = payload;
 
     const {
@@ -305,18 +308,20 @@ export function receiveAppendEntriesRpc<T>(
             setNode(newNode.commit(newCommitIndex));
         }
 
-        // console.log(getNode().persistentState.id, 'append-success', getNode().persistentState.log.entries.slice(-3))
+        setNode(newNode.discoverNewLeader(leaderId));
     }
 
-    // console.log(getNode().persistentState.id, leaderTerm, receiverTerm, getNode().mode);
     if (leaderTerm > receiverTerm) {
-        setNode(node.term(leaderTerm))
+        setNode(
+            node.term(leaderTerm)
+        )
         becomeFollowerCallback();
-        // setNode(node.becomeFollower())
     }
 
+    console.log('LAST KNOWN LEADER', getNode().volatileState.lastKnownLeader);
     return {
         success,
-        term: getNode().persistentState.currentTerm
+        term: getNode().persistentState.currentTerm,
+        lastKnownLeader: getNode().volatileState.lastKnownLeader
     };
 }

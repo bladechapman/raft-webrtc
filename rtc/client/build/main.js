@@ -213,6 +213,9 @@ define("raft-core-2/raftNode", ["require", "exports"], function (require, export
         RaftNode.prototype.vote = function (candidateId) {
             return new RaftNode(this.persistentState.vote(candidateId), this.volatileState, this.leaderState, this.mode);
         };
+        RaftNode.prototype.discoverNewLeader = function (id) {
+            return new RaftNode(this.persistentState, this.volatileState.discoverNewLeader(id), this.leaderState, this.mode);
+        };
         RaftNode.prototype.command = function (newCommand, term) {
             return new RaftNode(this.persistentState.command(newCommand, term), this.volatileState, this.leaderState, this.mode);
         };
@@ -240,7 +243,7 @@ define("raft-core-2/raftNode", ["require", "exports"], function (require, export
             return new RaftNode(this.persistentState, this.volatileState, this.leaderState.newMatchIndex(peerId, newMatchIndex), this.mode);
         };
         RaftNode.prototype.becomeLeader = function () {
-            return new RaftNode(this.persistentState, this.volatileState, this.leaderState, Mode.Leader);
+            return new RaftNode(this.persistentState, this.volatileState, this.leaderState, Mode.Leader).discoverNewLeader(this.persistentState.id);
         };
         RaftNode.prototype.becomeCandidate = function () {
             return new RaftNode(this.persistentState, this.volatileState, this.leaderState, Mode.Candidate);
@@ -332,15 +335,19 @@ define("raft-core-2/raftNode", ["require", "exports"], function (require, export
         return PersistentState;
     }());
     var VolatileState = /** @class */ (function () {
-        function VolatileState(commitIndex, lastApplied) {
+        function VolatileState(commitIndex, lastApplied, lastKnownLeader) {
             this.commitIndex = commitIndex;
             this.lastApplied = lastApplied;
+            this.lastKnownLeader = lastKnownLeader;
         }
         VolatileState.prototype.commit = function (newIndex) {
-            return new VolatileState(newIndex, this.lastApplied);
+            return new VolatileState(newIndex, this.lastApplied, this.lastKnownLeader);
         };
         VolatileState.prototype.apply = function (newIndex) {
-            return new VolatileState(this.commitIndex, newIndex);
+            return new VolatileState(this.commitIndex, newIndex, this.lastKnownLeader);
+        };
+        VolatileState.prototype.discoverNewLeader = function (id) {
+            return new VolatileState(this.commitIndex, this.lastApplied, id);
         };
         return VolatileState;
     }());
@@ -422,16 +429,17 @@ define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "ra
         var payload = {
             term: currentTerm,
             candidateId: id,
+            lastKnownLeader: node.volatileState.lastKnownLeader,
             lastLogIndex: log.getLastEntry().index,
             lastLogTerm: log.getLastEntry().termReceived
         };
         var group = Object.keys(node.leaderState.nextIndices);
         var promises = group.map(function (peerId) {
             return rpcInvoke(peerId, "receiveRequestVote", [payload]).then(function (result) {
-                var term = result.term;
+                var term = result.term, lastKnownLeader = result.lastKnownLeader;
                 var node = getNode();
                 if (term > node.persistentState.currentTerm) {
-                    setNode(node.term(term));
+                    setNode(node.term(term).discoverNewLeader(lastKnownLeader));
                     becomeFollowerCallback();
                 }
                 return result;
@@ -465,9 +473,11 @@ define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "ra
             becomeFollowerCallback();
             // setNode(node.becomeFollower());
         }
+        console.log('LAST KNOWN LEADER', getNode().volatileState.lastKnownLeader);
         return {
             term: greaterTerm,
-            voteGranted: voteGranted
+            voteGranted: voteGranted,
+            lastKnownLeader: getNode().volatileState.lastKnownLeader
         };
     }
     exports.receiveRequestVoteRpc = receiveRequestVoteRpc;
@@ -535,14 +545,13 @@ define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "ra
             .then(function (result) {
             var currentNode = getNode();
             var currentTerm = currentNode.persistentState.currentTerm;
-            var success = result.success, term = result.term;
+            var success = result.success, term = result.term, lastKnownLeader = result.lastKnownLeader;
             if (term > currentTerm) {
-                setNode(currentNode.term(term));
+                setNode(currentNode.term(term).discoverNewLeader(lastKnownLeader));
                 becomeFollowerCallback();
+                // TODO: I guess if we’re no longer leader, just throw out the response...
                 return 'TEMP IMPL: NO LONGER LEADER 2';
             }
-            // TODO: I guess if we’re no longer leader, just throw out the response...
-            // We’ll get back to that later, for now let’s just assume we’re still leader
             // if (Result.isOk(result)) {
             // const { data } = result;
             // const { success, term } = data;
@@ -584,7 +593,7 @@ define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "ra
     ) {
         console.log('RECEIVE APPEND');
         var node = getNode();
-        var leaderTerm = payload.term, prevLogIndex = payload.prevLogIndex, prevLogTerm = payload.prevLogTerm, entries = payload.entries, receivedLeaderCommit = payload.leaderCommit;
+        var leaderTerm = payload.term, prevLogIndex = payload.prevLogIndex, prevLogTerm = payload.prevLogTerm, entries = payload.entries, receivedLeaderCommit = payload.leaderCommit, leaderId = payload.leaderId;
         var _a = node.persistentState, receiverTerm = _a.currentTerm, log = _a.log, id = _a.id;
         var commitIndex = node.volatileState.commitIndex;
         var success = (leaderTerm >= receiverTerm &&
@@ -600,17 +609,17 @@ define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "ra
                 var newCommitIndex = newNode.persistentState.log.getLastEntry().index;
                 setNode(newNode.commit(newCommitIndex));
             }
-            // console.log(getNode().persistentState.id, 'append-success', getNode().persistentState.log.entries.slice(-3))
+            setNode(newNode.discoverNewLeader(leaderId));
         }
-        // console.log(getNode().persistentState.id, leaderTerm, receiverTerm, getNode().mode);
         if (leaderTerm > receiverTerm) {
             setNode(node.term(leaderTerm));
             becomeFollowerCallback();
-            // setNode(node.becomeFollower())
         }
+        console.log('LAST KNOWN LEADER', getNode().volatileState.lastKnownLeader);
         return {
             success: success,
-            term: getNode().persistentState.currentTerm
+            term: getNode().persistentState.currentTerm,
+            lastKnownLeader: getNode().volatileState.lastKnownLeader
         };
     }
     exports.receiveAppendEntriesRpc = receiveAppendEntriesRpc;

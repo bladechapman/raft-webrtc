@@ -47,13 +47,22 @@ export class RaftNode<T> {
         );
     }
 
-    vote(candidateId: number) {
+    vote(candidateId: string) {
         return new RaftNode(
             this.persistentState.vote(candidateId),
             this.volatileState,
             this.leaderState,
             this.mode
         );
+    }
+
+    discoverNewLeader(id: string) {
+        return new RaftNode(
+            this.persistentState,
+            this.volatileState.discoverNewLeader(id),
+            this.leaderState,
+            this.mode
+        )
     }
 
     command(newCommand: T, term?: number) {
@@ -127,7 +136,7 @@ export class RaftNode<T> {
             this.volatileState,
             this.leaderState,
             Mode.Leader
-        );
+        ).discoverNewLeader(this.persistentState.id);
     }
 
     becomeCandidate() {
@@ -242,14 +251,14 @@ class Log<T> {
 
 class PersistentState<T> {
     readonly currentTerm: number;
-    readonly votedFor: number | null;
+    readonly votedFor: string | null;
     readonly id: string;
     readonly log: Log<T>;
 
     constructor(
         log: Log<T>,
         term: number,
-        vote: number | null,
+        vote: string | null,
         id: string,
     ) {
         this.currentTerm = term;
@@ -267,7 +276,7 @@ class PersistentState<T> {
         );
     }
 
-    vote(candidateId: number) {
+    vote(candidateId: string) {
         return new PersistentState(
             this.log,
             this.currentTerm,
@@ -299,26 +308,39 @@ class PersistentState<T> {
 class VolatileState {
     readonly commitIndex: number;
     readonly lastApplied: number;
+    readonly lastKnownLeader?: string;
 
     constructor(
         commitIndex: number,
-        lastApplied: number
+        lastApplied: number,
+        lastKnownLeader?: string
     ) {
         this.commitIndex = commitIndex;
         this.lastApplied = lastApplied;
+        this.lastKnownLeader = lastKnownLeader;
     }
 
     commit(newIndex: number) {
         return new VolatileState(
             newIndex,
-            this.lastApplied
+            this.lastApplied,
+            this.lastKnownLeader
         );
     }
 
     apply(newIndex: number) {
         return new VolatileState(
             this.commitIndex,
-            newIndex
+            newIndex,
+            this.lastKnownLeader
+        );
+    }
+
+    discoverNewLeader(id: string) {
+        return new VolatileState(
+            this.commitIndex,
+            this.lastApplied,
+            id
         );
     }
 }
