@@ -1,4 +1,4 @@
-import { RaftNode } from './raftNode';
+import { RaftNode, Mode } from './raftNode';
 import {
     broadcastRequestVoteRpc,
     receiveRequestVoteRpc,
@@ -100,6 +100,32 @@ export function useNode(
             },
 
             'receiveClientRequest': (payload) => {
+                const { data } = payload;
+
+                // If we're the leader, return the result of broadcasting append entries rpc
+                if (getNode().mode === Mode.Leader) {
+                    return broadcastAppendEntriesRpc(
+                        getNode,
+                        setNode,
+                        [data],
+                        function () {
+                            step(
+                                [getNode, setNode],
+                                [setFollowerTimer, clearFollowerTimer],
+                                [setCandidateTimer, clearCandidateTimer],
+                                [setLeaderTimer, clearLeaderTimer],
+                                [rpcInvoke, rpcReceive],
+                                'BecomeFollower'
+                            );
+                        },
+                        rpcInvoke
+                    );
+                }
+
+                // If we're not the leader, just eject and forward the leader info
+                else {
+                    return { status: 'INCORRECT LEADER', data: node.volatileState.lastKnownLeader };
+                }
 
             }
         }
@@ -144,13 +170,38 @@ export function step(
         throw new Error(`step: Invalid event ${event}`);
 }
 
-export function handleClientRequest() {
+export function handleClientRequest(
+    [getNode, setNode],
+    [rpcInvoke, rpcReceive],
+    becomeFollowerCallback,
+    data
+) {
     // Forward the client request to the expected leader
     //
     // Expected leader handles client request, responds to initial request with whether or not
     // it was actually the leader
     //
     // If not the actual leader, use the returned last known leader to try again. If no last known leader, pick a random node and try again.
+    const node = getNode();
+    const { volatileState, persistentState } = node;
+
+    const maybeLastKnownLeader = volatileState.lastKnownLeader;
+    if (!maybeLastKnownLeader) {
+        return new Promise((res, rej) => res({ status: 'UNKNOWN LEADER' }))
+    }
+    else if (maybeLastKnownLeader === persistentState.id) {
+        // invoke append entries as leader
+        return broadcastAppendEntriesRpc(
+            getNode,
+            setNode,
+            [data],
+            becomeFollowerCallback,
+            rpcInvoke
+        );
+    }
+    else {
+        return rpcInvoke(maybeLastKnownLeader, 'receiveClientRequest', [{ command: 'append', data }]);
+    }
 }
 
 function becomeFollower(

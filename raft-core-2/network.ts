@@ -266,7 +266,7 @@ export function receiveAppendEntriesRpc<T>(
     payload: any,
     becomeFollowerCallback  // hack
 ) {
-    console.log('RECEIVE APPEND');
+    console.log('RECEIVE APPEND', payload.entries);
 
     const node = getNode();
 

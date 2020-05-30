@@ -1,7 +1,7 @@
 import { createUUID } from './lib/uuid';
 import { RtcBidirectionalDataChannel, RtcBidirectionalDataChannelDelegate } from './rtc';
 import { rpcRegister } from '../../../rpc/rpc';
-import { useNode, step  } from '../../../raft-core-2/api';
+import { useNode, step, handleClientRequest } from '../../../raft-core-2/api';
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM READY');
@@ -24,6 +24,9 @@ function main() {
     )
 
     const [getNode, setNode] = nodeFns[0];
+    const [setFollowerTimer, clearFollowerTimer] = nodeFns[1];
+    const [setCandidateTimer, clearCandidateTimer] = nodeFns[2];
+    const [setLeaderTimer, clearLeaderTimer] = nodeFns[3];
     const [rpcInvoke, rpcReceive] = nodeFns[4];
 
     // const [rpcInvoke, rpcReceive] = rpcRegister(
@@ -108,12 +111,28 @@ function main() {
         if (submissionElem) {
             const text = submissionElem.value;
 
-            Array.from(dataChannels.keys()).forEach(peerUuid => {
-                const t = rpcInvoke(peerUuid, 'printAndAcknowledge', [text]);
-                (t as Promise<any>).then(r => {
-                    console.log(r);
-                });
-            });
+            handleClientRequest(
+                [getNode, setNode],
+                [rpcInvoke, rpcReceive],
+                function () {
+                    step(
+                        [getNode, setNode],
+                        [setFollowerTimer, clearFollowerTimer],
+                        [setCandidateTimer, clearCandidateTimer],
+                        [setLeaderTimer, clearLeaderTimer],
+                        [rpcInvoke, rpcReceive],
+                        'BecomeFollower'
+                    );
+                },
+                text
+            );
+
+            // Array.from(dataChannels.keys()).forEach(peerUuid => {
+            //     const t = rpcInvoke(peerUuid, 'printAndAcknowledge', [text]);
+            //     (t as Promise<any>).then(r => {
+            //         console.log(r);
+            //     });
+            // });
         }
     }
 

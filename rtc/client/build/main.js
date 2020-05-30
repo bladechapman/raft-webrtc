@@ -591,7 +591,7 @@ define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "ra
     }
     function receiveAppendEntriesRpc(getNode, setNode, payload, becomeFollowerCallback // hack
     ) {
-        console.log('RECEIVE APPEND');
+        console.log('RECEIVE APPEND', payload.entries);
         var node = getNode();
         var leaderTerm = payload.term, prevLogIndex = payload.prevLogIndex, prevLogTerm = payload.prevLogTerm, entries = payload.entries, receivedLeaderCommit = payload.leaderCommit, leaderId = payload.leaderId;
         var _a = node.persistentState, receiverTerm = _a.currentTerm, log = _a.log, id = _a.id;
@@ -662,6 +662,19 @@ define("raft-core-2/api", ["require", "exports", "raft-core-2/raftNode", "raft-c
                     step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], [rpcInvoke, rpcReceive], 'BecomeFollower');
                 });
                 return r;
+            },
+            'receiveClientRequest': function (payload) {
+                var data = payload.data;
+                // If we're the leader, return the result of broadcasting append entries rpc
+                if (getNode().mode === raftNode_2.Mode.Leader) {
+                    return network_1.broadcastAppendEntriesRpc(getNode, setNode, [data], function () {
+                        step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], [rpcInvoke, rpcReceive], 'BecomeFollower');
+                    }, rpcInvoke);
+                }
+                // If we're not the leader, just eject and forward the leader info
+                else {
+                    return { status: 'INCORRECT LEADER', data: node.volatileState.lastKnownLeader };
+                }
             }
         }), rpcInvoke = _d[0], rpcReceive = _d[1];
         var node = raftNode_2.RaftNode["default"](uuid);
@@ -703,6 +716,30 @@ define("raft-core-2/api", ["require", "exports", "raft-core-2/raftNode", "raft-c
             throw new Error("step: Invalid event " + event);
     }
     exports.step = step;
+    function handleClientRequest(_a, _b, becomeFollowerCallback, data) {
+        var getNode = _a[0], setNode = _a[1];
+        var rpcInvoke = _b[0], rpcReceive = _b[1];
+        // Forward the client request to the expected leader
+        //
+        // Expected leader handles client request, responds to initial request with whether or not
+        // it was actually the leader
+        //
+        // If not the actual leader, use the returned last known leader to try again. If no last known leader, pick a random node and try again.
+        var node = getNode();
+        var volatileState = node.volatileState, persistentState = node.persistentState;
+        var maybeLastKnownLeader = volatileState.lastKnownLeader;
+        if (!maybeLastKnownLeader) {
+            return new Promise(function (res, rej) { return res({ status: 'UNKNOWN LEADER' }); });
+        }
+        else if (maybeLastKnownLeader === persistentState.id) {
+            // invoke append entries as leader
+            return network_1.broadcastAppendEntriesRpc(getNode, setNode, [data], becomeFollowerCallback, rpcInvoke);
+        }
+        else {
+            return rpcInvoke(maybeLastKnownLeader, 'receiveClientRequest', [{ command: 'append', data: data }]);
+        }
+    }
+    exports.handleClientRequest = handleClientRequest;
     function becomeFollower(_a, _b, _c, _d, _e) {
         var getNode = _a[0], setNode = _a[1];
         var setFollowerTimer = _b[0], clearFollowerTimer = _b[1];
@@ -795,7 +832,10 @@ define("rtc/client/src/main", ["require", "exports", "rtc/client/src/lib/uuid", 
             channel.send(JSON.stringify(payload));
         });
         var _a = nodeFns[0], getNode = _a[0], setNode = _a[1];
-        var _b = nodeFns[4], rpcInvoke = _b[0], rpcReceive = _b[1];
+        var _b = nodeFns[1], setFollowerTimer = _b[0], clearFollowerTimer = _b[1];
+        var _c = nodeFns[2], setCandidateTimer = _c[0], clearCandidateTimer = _c[1];
+        var _d = nodeFns[3], setLeaderTimer = _d[0], clearLeaderTimer = _d[1];
+        var _e = nodeFns[4], rpcInvoke = _e[0], rpcReceive = _e[1];
         // const [rpcInvoke, rpcReceive] = rpcRegister(
         //     uuid, 
         //     (payload) => {
@@ -850,13 +890,16 @@ define("rtc/client/src/main", ["require", "exports", "rtc/client/src/lib/uuid", 
         window.send = function () {
             var submissionElem = document.getElementById('submission');
             if (submissionElem) {
-                var text_1 = submissionElem.value;
-                Array.from(dataChannels.keys()).forEach(function (peerUuid) {
-                    var t = rpcInvoke(peerUuid, 'printAndAcknowledge', [text_1]);
-                    t.then(function (r) {
-                        console.log(r);
-                    });
-                });
+                var text = submissionElem.value;
+                api_1.handleClientRequest([getNode, setNode], [rpcInvoke, rpcReceive], function () {
+                    api_1.step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], [rpcInvoke, rpcReceive], 'BecomeFollower');
+                }, text);
+                // Array.from(dataChannels.keys()).forEach(peerUuid => {
+                //     const t = rpcInvoke(peerUuid, 'printAndAcknowledge', [text]);
+                //     (t as Promise<any>).then(r => {
+                //         console.log(r);
+                //     });
+                // });
             }
         };
         window.beginRaft = function () {
