@@ -86,7 +86,10 @@ export class RaftNode<T> {
     commit(newIndex: number) {
         // console.log(this.persistentState.id, 'newCommit', newIndex);
 
-        console.log(this.persistentState.log.slice(0, newIndex + 1).entries.map(e => e.command));
+        console.log(this.persistentState.log.slice(0, newIndex + 1).entries
+            .map(e => e.command)
+            // .filter(e => e !== null && (e as unknown as string).indexOf('heartbeat') === -1)
+        )
 
         return new RaftNode(
             this.persistentState,

@@ -224,7 +224,9 @@ define("raft-core-2/raftNode", ["require", "exports"], function (require, export
         };
         RaftNode.prototype.commit = function (newIndex) {
             // console.log(this.persistentState.id, 'newCommit', newIndex);
-            console.log(this.persistentState.log.slice(0, newIndex + 1).entries.map(function (e) { return e.command; }));
+            console.log(this.persistentState.log.slice(0, newIndex + 1).entries
+                .map(function (e) { return e.command; })
+                .filter(function (e) { return e !== null && e.indexOf('heartbeat') === -1; }));
             return new RaftNode(this.persistentState, this.volatileState.commit(newIndex), this.leaderState, this.mode);
         };
         RaftNode.prototype.apply = function (newIndex) {
