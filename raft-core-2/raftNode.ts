@@ -86,6 +86,8 @@ export class RaftNode<T> {
     commit(newIndex: number) {
         // console.log(this.persistentState.id, 'newCommit', newIndex);
 
+        console.log(this.persistentState.log.slice(0, newIndex + 1).entries.map(e => e.command));
+
         return new RaftNode(
             this.persistentState,
             this.volatileState.commit(newIndex),
@@ -131,6 +133,7 @@ export class RaftNode<T> {
     }
 
     becomeLeader() {
+        console.log('BECOMING LEADER');
         return new RaftNode(
             this.persistentState,
             this.volatileState,

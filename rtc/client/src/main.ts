@@ -111,7 +111,7 @@ function main() {
         if (submissionElem) {
             const text = submissionElem.value;
 
-            handleClientRequest(
+            const r = handleClientRequest(
                 [getNode, setNode],
                 [rpcInvoke, rpcReceive],
                 function () {
@@ -127,6 +127,8 @@ function main() {
                 text
             );
 
+            console.log(r);
+
             // Array.from(dataChannels.keys()).forEach(peerUuid => {
             //     const t = rpcInvoke(peerUuid, 'printAndAcknowledge', [text]);
             //     (t as Promise<any>).then(r => {
@@ -138,7 +140,6 @@ function main() {
 
     (window as any).beginRaft = () => {
         (window as any).call = () => {}
-        (window as any).send = () => {}
 
         console.log('BEGIN RAFT');
         (window as any).handleBegin();

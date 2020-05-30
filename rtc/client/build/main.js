@@ -224,6 +224,7 @@ define("raft-core-2/raftNode", ["require", "exports"], function (require, export
         };
         RaftNode.prototype.commit = function (newIndex) {
             // console.log(this.persistentState.id, 'newCommit', newIndex);
+            console.log(this.persistentState.log.slice(0, newIndex + 1).entries.map(function (e) { return e.command; }));
             return new RaftNode(this.persistentState, this.volatileState.commit(newIndex), this.leaderState, this.mode);
         };
         RaftNode.prototype.apply = function (newIndex) {
@@ -243,6 +244,7 @@ define("raft-core-2/raftNode", ["require", "exports"], function (require, export
             return new RaftNode(this.persistentState, this.volatileState, this.leaderState.newMatchIndex(peerId, newMatchIndex), this.mode);
         };
         RaftNode.prototype.becomeLeader = function () {
+            console.log('BECOMING LEADER');
             return new RaftNode(this.persistentState, this.volatileState, this.leaderState, Mode.Leader).discoverNewLeader(this.persistentState.id);
         };
         RaftNode.prototype.becomeCandidate = function () {
@@ -423,7 +425,6 @@ define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "ra
     exports.__esModule = true;
     // import { rpcInvoke } from '../raft-draft/rpc';
     function broadcastRequestVoteRpc(getNode, setNode, becomeFollowerCallback, rpcInvoke) {
-        console.log('BROADCAST REQUEST VOTE');
         var node = getNode();
         var _a = node.persistentState, currentTerm = _a.currentTerm, id = _a.id, log = _a.log;
         var payload = {
@@ -456,7 +457,6 @@ define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "ra
     exports.broadcastRequestVoteRpc = broadcastRequestVoteRpc;
     function receiveRequestVoteRpc(getNode, setNode, payload, becomeFollowerCallback // HACK
     ) {
-        console.log('RECEIVE REQUEST VOTE');
         var node = getNode();
         var _a = node.persistentState, currentTerm = _a.currentTerm, votedFor = _a.votedFor, log = _a.log;
         var proposedTerm = payload.term, candidateId = payload.candidateId, candidateLastLogIndex = payload.lastLogIndex, candidateLastLogTerm = payload.lastLogTerm;
@@ -473,7 +473,6 @@ define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "ra
             becomeFollowerCallback();
             // setNode(node.becomeFollower());
         }
-        console.log('LAST KNOWN LEADER', getNode().volatileState.lastKnownLeader);
         return {
             term: greaterTerm,
             voteGranted: voteGranted,
@@ -482,7 +481,6 @@ define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "ra
     }
     exports.receiveRequestVoteRpc = receiveRequestVoteRpc;
     function broadcastAppendEntriesRpc(getNode, setNode, proposedCommands, becomeFollowerCallback, rpcInvoke) {
-        console.log('BROADCAST APPEND');
         var node = getNode();
         var nextIndices = node.leaderState.nextIndices;
         var _a = node.persistentState, leaderLog = _a.log, currentTerm = _a.currentTerm;
@@ -591,7 +589,6 @@ define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "ra
     }
     function receiveAppendEntriesRpc(getNode, setNode, payload, becomeFollowerCallback // hack
     ) {
-        console.log('RECEIVE APPEND', payload.entries);
         var node = getNode();
         var leaderTerm = payload.term, prevLogIndex = payload.prevLogIndex, prevLogTerm = payload.prevLogTerm, entries = payload.entries, receivedLeaderCommit = payload.leaderCommit, leaderId = payload.leaderId;
         var _a = node.persistentState, receiverTerm = _a.currentTerm, log = _a.log, id = _a.id;
@@ -615,7 +612,6 @@ define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "ra
             setNode(node.term(leaderTerm));
             becomeFollowerCallback();
         }
-        console.log('LAST KNOWN LEADER', getNode().volatileState.lastKnownLeader);
         return {
             success: success,
             term: getNode().persistentState.currentTerm,
@@ -701,7 +697,6 @@ define("raft-core-2/api", ["require", "exports", "raft-core-2/raftNode", "raft-c
             [setLeaderTimer, clearLeaderTimer],
             [rpcInvoke, rpcReceive]
         ];
-        console.log(getNode().persistentState.id, event);
         if (event === 'BecomeFollower')
             becomeFollower.apply(null, args);
         else if (event === 'FollowerTimeout')
@@ -809,7 +804,7 @@ define("raft-core-2/api", ["require", "exports", "raft-core-2/raftNode", "raft-c
         clearFollowerTimer();
         setNode(node.becomeLeader());
         // TODO: fix the heartbeat type
-        network_1.broadcastAppendEntriesRpc(getNode, setNode, ['hearbeat'], function () { step.apply(null, __spreadArrays(Array.from(arguments), ['BecomeFollower'])); }, rpcInvoke);
+        network_1.broadcastAppendEntriesRpc(getNode, setNode, ["hearbeat-" + Date.now()], function () { step.apply(null, __spreadArrays(Array.from(arguments), ['BecomeFollower'])); }, rpcInvoke);
         setLeaderTimer(function () {
             step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], [rpcInvoke, rpcReceive], 'BecomeLeader');
         }, 1300 + Math.random() * 200);
@@ -891,9 +886,10 @@ define("rtc/client/src/main", ["require", "exports", "rtc/client/src/lib/uuid", 
             var submissionElem = document.getElementById('submission');
             if (submissionElem) {
                 var text = submissionElem.value;
-                api_1.handleClientRequest([getNode, setNode], [rpcInvoke, rpcReceive], function () {
+                var r = api_1.handleClientRequest([getNode, setNode], [rpcInvoke, rpcReceive], function () {
                     api_1.step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], [rpcInvoke, rpcReceive], 'BecomeFollower');
                 }, text);
+                console.log(r);
                 // Array.from(dataChannels.keys()).forEach(peerUuid => {
                 //     const t = rpcInvoke(peerUuid, 'printAndAcknowledge', [text]);
                 //     (t as Promise<any>).then(r => {
@@ -904,7 +900,6 @@ define("rtc/client/src/main", ["require", "exports", "rtc/client/src/lib/uuid", 
         };
         window.beginRaft = function () {
             window.call = function () { };
-            window.send = function () { };
             console.log('BEGIN RAFT');
             window.handleBegin();
             window.broadcastBegin();

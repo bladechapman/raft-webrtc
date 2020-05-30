@@ -159,8 +159,6 @@ export function step(
         [rpcInvoke, rpcReceive]
     ];
 
-    console.log(getNode().persistentState.id, event);
-
     if (event === 'BecomeFollower') becomeFollower.apply(null, args);
     else if (event === 'FollowerTimeout') followerTimeout.apply(null, args);
     else if (event === 'BecomeCandidate') becomeCandidate.apply(null, args);
@@ -336,7 +334,7 @@ function becomeLeader(
     broadcastAppendEntriesRpc(
         getNode,
         setNode,
-        ['hearbeat'],
+        [`hearbeat-${Date.now()}`],
         function () { step.apply(null, [...Array.from(arguments), 'BecomeFollower']) },
         rpcInvoke
     )
