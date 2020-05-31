@@ -188,7 +188,7 @@ define("rpc/rpc", ["require", "exports"], function (require, exports) {
     }
     exports.rpcRegister = rpcRegister;
 });
-define("raft-core-2/raftNode", ["require", "exports"], function (require, exports) {
+define("raft-core/raftNode", ["require", "exports"], function (require, exports) {
     "use strict";
     exports.__esModule = true;
     var Mode;
@@ -378,7 +378,7 @@ define("raft-core-2/raftNode", ["require", "exports"], function (require, export
         return LeaderState;
     }());
 });
-define("raft-core-2/lib", ["require", "exports"], function (require, exports) {
+define("raft-core/lib", ["require", "exports"], function (require, exports) {
     "use strict";
     exports.__esModule = true;
     exports.Result = {
@@ -429,7 +429,7 @@ define("raft-core-2/lib", ["require", "exports"], function (require, exports) {
     }
     exports.debug = debug;
 });
-define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "raft-core-2/lib"], function (require, exports, raftNode_1, lib_1) {
+define("raft-core/network", ["require", "exports", "raft-core/raftNode", "raft-core/lib"], function (require, exports, raftNode_1, lib_1) {
     "use strict";
     exports.__esModule = true;
     function broadcastRequestVoteRpc(getNode, setNode, becomeFollowerCallback, rpcInvoke) {
@@ -628,7 +628,7 @@ define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "ra
     }
     exports.receiveAppendEntriesRpc = receiveAppendEntriesRpc;
 });
-define("raft-core-2/api", ["require", "exports", "raft-core-2/raftNode", "raft-core-2/network", "rpc/rpc"], function (require, exports, raftNode_2, network_1, rpc_1) {
+define("raft-core/api", ["require", "exports", "raft-core/raftNode", "raft-core/network", "rpc/rpc"], function (require, exports, raftNode_2, network_1, rpc_1) {
     "use strict";
     exports.__esModule = true;
     function useTimer() {
@@ -833,7 +833,7 @@ define("raft-core-2/api", ["require", "exports", "raft-core-2/raftNode", "raft-c
         }, 1300 + Math.random() * 200);
     }
 });
-define("rtc/client/src/main", ["require", "exports", "rtc/client/src/lib/uuid", "rtc/client/src/rtc", "raft-core-2/api"], function (require, exports, uuid_1, rtc_1, api_1) {
+define("rtc/client/src/main", ["require", "exports", "rtc/client/src/lib/uuid", "rtc/client/src/rtc", "raft-core/api"], function (require, exports, uuid_1, rtc_1, api_1) {
     "use strict";
     exports.__esModule = true;
     document.addEventListener('DOMContentLoaded', function () {

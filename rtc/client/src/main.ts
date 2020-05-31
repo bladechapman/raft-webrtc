@@ -1,7 +1,7 @@
 import { createUUID } from './lib/uuid';
 import { RtcBidirectionalDataChannel, RtcBidirectionalDataChannelDelegate } from './rtc';
 import { rpcRegister } from '../../../rpc/rpc';
-import { useNode, step, handleClientRequest } from '../../../raft-core-2/api';
+import { useNode, step, handleClientRequest } from '../../../raft-core/api';
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM READY');
