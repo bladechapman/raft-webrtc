@@ -378,7 +378,7 @@ define("raft-core-2/raftNode", ["require", "exports"], function (require, export
         return LeaderState;
     }());
 });
-define("raft-draft/lib", ["require", "exports"], function (require, exports) {
+define("raft-core-2/lib", ["require", "exports"], function (require, exports) {
     "use strict";
     exports.__esModule = true;
     exports.Result = {
@@ -429,10 +429,9 @@ define("raft-draft/lib", ["require", "exports"], function (require, exports) {
     }
     exports.debug = debug;
 });
-define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "raft-draft/lib"], function (require, exports, raftNode_1, lib_1) {
+define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "raft-core-2/lib"], function (require, exports, raftNode_1, lib_1) {
     "use strict";
     exports.__esModule = true;
-    // import { rpcInvoke } from '../raft-draft/rpc';
     function broadcastRequestVoteRpc(getNode, setNode, becomeFollowerCallback, rpcInvoke) {
         var node = getNode();
         var _a = node.persistentState, currentTerm = _a.currentTerm, id = _a.id, log = _a.log;

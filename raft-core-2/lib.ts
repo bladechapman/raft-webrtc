@@ -1,4 +1,3 @@
-
 type TOkResult<T> = {
     type: "Ok"
     data: T

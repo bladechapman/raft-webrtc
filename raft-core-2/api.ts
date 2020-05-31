@@ -5,7 +5,6 @@ import {
     broadcastAppendEntriesRpc,
     receiveAppendEntriesRpc
 } from './network';
-// import { rpcRegister } from '../raft-draft/rpc';
 import { rpcRegister } from '../rpc/rpc';
 
 

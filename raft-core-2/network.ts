@@ -1,6 +1,5 @@
 import { RaftNode, Mode } from './raftNode';
-import { RaftPromise } from '../raft-draft/lib';
-// import { rpcInvoke } from '../raft-draft/rpc';
+import { RaftPromise } from './lib';
 
 export function broadcastRequestVoteRpc<T>(
     getNode: () => RaftNode<T>,
