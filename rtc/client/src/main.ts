@@ -13,7 +13,6 @@ document.addEventListener('DOMContentLoaded', () => {
 (window as any).takeOffline = () => (window as any).online = false;
 (window as any).takeOnline = () => (window as any).online = true;
 
-
 function main() {
     const uuid = createUUID();
     const serverConnection = new WebSocket('wss://' + window.location.hostname + ':8443');
@@ -94,6 +93,8 @@ function main() {
 
     (window as any).call = () => {
         serverConnection.send(JSON.stringify({ 'register': true, uuid }));
+        (document.getElementById('call') as HTMLButtonElement).disabled = true;
+        (document.getElementById('begin') as HTMLButtonElement).disabled = false;
     }
 
     (window as any).send = () => {
@@ -116,22 +117,10 @@ function main() {
                 },
                 text
             );
-
-            console.log(r);
-
-            // Array.from(dataChannels.keys()).forEach(peerUuid => {
-            //     const t = rpcInvoke(peerUuid, 'printAndAcknowledge', [text]);
-            //     (t as Promise<any>).then(r => {
-            //         console.log(r);
-            //     });
-            // });
         }
     }
 
     (window as any).beginRaft = () => {
-        (window as any).call = () => {}
-
-        console.log('BEGIN RAFT');
         (window as any).handleBegin();
         (window as any).broadcastBegin();
     }
@@ -143,12 +132,22 @@ function main() {
     }
 
     (window as any).handleBegin = () => {
-        console.log('BEGINNING');
+        (document.getElementById('begin') as HTMLButtonElement).disabled = true;
+        (document.getElementById('send') as HTMLButtonElement).disabled = false;
         Array.from(dataChannels.keys()).forEach(peerId => {
             setNode(getNode().newNextIndex(peerId, 1))
         });
 
         setTimeout(() => { step.apply(null, [...nodeFns, 'BecomeFollower']) }, 2500);
+    }
+
+    (window as any).newCommit = (commits) => {
+        const elems = commits
+            .map(e => e.command)
+            .filter(e => e !== null && (e as unknown as string).indexOf('heartbeat') === -1)
+            .map(e => `<div>${e}</div>`).join('');
+
+        (document.getElementById('history') as HTMLElement).innerHTML = elems;
     }
 }
 

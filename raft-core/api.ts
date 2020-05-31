@@ -15,7 +15,7 @@ function useTimer():
 
     function setTimer(callback: any, timeout?: number) {
         clearTimeout(handle);
-        const t = timeout || Math.random() * 500 + 3000
+        const t = timeout || Math.random() * 1000 + 5000
         handle = setTimeout(callback, t);
     }
 
@@ -363,7 +363,7 @@ function becomeLeader(
             [rpcInvoke, rpcReceive],
             'BecomeLeader'
         )
-    }, 1300 + Math.random() * 200);
+    }, 1000 + Math.random() * 1000);
 
 }
 

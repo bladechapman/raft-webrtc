@@ -229,11 +229,14 @@ define("raft-core/raftNode", ["require", "exports"], function (require, exports)
         };
         RaftNode.prototype.commit = function (newIndex) {
             // console.log(this.persistentState.id, 'newCommit', newIndex);
-            console.log(this.persistentState.log.slice(0, newIndex + 1).entries
-                .map(function (e) { return e.command; })
-                .filter(function (e) { return e !== null && e.indexOf('heartbeat') === -1; })
-            // .filter(e => e !== null && (e as unknown as string).indexOf('heartbeat') === -1)
-            );
+            if (window.newCommit) {
+                window.newCommit(this.persistentState.log.slice(0, newIndex + 1).entries);
+            }
+            // console.log(this.persistentState.log.slice(0, newIndex + 1).entries
+            //     .map(e => e.command)
+            //     .filter(e => e !== null && (e as any).indexOf('heartbeat') === -1)
+            //     // .filter(e => e !== null && (e as unknown as string).indexOf('heartbeat') === -1)
+            // )
             return new RaftNode(this.persistentState, this.volatileState.commit(newIndex), this.leaderState, this.mode);
         };
         RaftNode.prototype.apply = function (newIndex) {
@@ -635,7 +638,7 @@ define("raft-core/api", ["require", "exports", "raft-core/raftNode", "raft-core/
         var handle;
         function setTimer(callback, timeout) {
             clearTimeout(handle);
-            var t = timeout || Math.random() * 500 + 3000;
+            var t = timeout || Math.random() * 1000 + 5000;
             handle = setTimeout(callback, t);
         }
         function clearTimer() {
@@ -830,7 +833,7 @@ define("raft-core/api", ["require", "exports", "raft-core/raftNode", "raft-core/
         }
         setLeaderTimer(function () {
             step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], [rpcInvoke, rpcReceive], 'BecomeLeader');
-        }, 1300 + Math.random() * 200);
+        }, 1000 + Math.random() * 1000);
     }
 });
 define("rtc/client/src/main", ["require", "exports", "rtc/client/src/lib/uuid", "rtc/client/src/rtc", "raft-core/api"], function (require, exports, uuid_1, rtc_1, api_1) {
@@ -893,6 +896,8 @@ define("rtc/client/src/main", ["require", "exports", "rtc/client/src/lib/uuid", 
         // ===========
         window.call = function () {
             serverConnection.send(JSON.stringify({ 'register': true, uuid: uuid }));
+            document.getElementById('call').disabled = true;
+            document.getElementById('begin').disabled = false;
         };
         window.send = function () {
             var submissionElem = document.getElementById('submission');
@@ -901,18 +906,9 @@ define("rtc/client/src/main", ["require", "exports", "rtc/client/src/lib/uuid", 
                 var r = api_1.handleClientRequest([getNode, setNode], [rpcInvoke, rpcReceive], function () {
                     api_1.step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], [rpcInvoke, rpcReceive], 'BecomeFollower');
                 }, text);
-                console.log(r);
-                // Array.from(dataChannels.keys()).forEach(peerUuid => {
-                //     const t = rpcInvoke(peerUuid, 'printAndAcknowledge', [text]);
-                //     (t as Promise<any>).then(r => {
-                //         console.log(r);
-                //     });
-                // });
             }
         };
         window.beginRaft = function () {
-            window.call = function () { };
-            console.log('BEGIN RAFT');
             window.handleBegin();
             window.broadcastBegin();
         };
@@ -922,11 +918,19 @@ define("rtc/client/src/main", ["require", "exports", "rtc/client/src/lib/uuid", 
             });
         };
         window.handleBegin = function () {
-            console.log('BEGINNING');
+            document.getElementById('begin').disabled = true;
+            document.getElementById('send').disabled = false;
             Array.from(dataChannels.keys()).forEach(function (peerId) {
                 setNode(getNode().newNextIndex(peerId, 1));
             });
             setTimeout(function () { api_1.step.apply(null, __spreadArrays(nodeFns, ['BecomeFollower'])); }, 2500);
+        };
+        window.newCommit = function (commits) {
+            var elems = commits
+                .map(function (e) { return e.command; })
+                .filter(function (e) { return e !== null && e.indexOf('heartbeat') === -1; })
+                .map(function (e) { return "<div>" + e + "</div>"; }).join('');
+            document.getElementById('history').innerHTML = elems;
         };
     }
     function registerDataChannels(uuid, peerUuids, dataChannels, serverConnection, rpcReceive) {
