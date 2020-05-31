@@ -10,10 +10,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 (window as any).online = true;
-(window as any).takeOffline = () => (window as any).online = false;
-(window as any).takeOnline = () => (window as any).online = true;
+(window as any).takeOffline = () => {
+    (window as any).online = false;
+    (document.getElementById('offline') as HTMLButtonElement).disabled = true;
+    (document.getElementById('online') as HTMLButtonElement).disabled = false;
+}
+
+(window as any).takeOnline = () => {
+    (window as any).online = true;
+    (document.getElementById('online') as HTMLButtonElement).disabled = true;
+    (document.getElementById('offline') as HTMLButtonElement).disabled = false;
+}
 
 function main() {
+    (document.getElementById('online') as HTMLButtonElement).disabled = true;
+
     const uuid = createUUID();
     const serverConnection = new WebSocket('wss://' + window.location.hostname + ':8443');
     const dataChannels = new Map();

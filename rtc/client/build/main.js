@@ -473,9 +473,10 @@ define("raft-core/network", ["require", "exports", "raft-core/raftNode", "raft-c
         var proposedTerm = payload.term, candidateId = payload.candidateId, candidateLastLogIndex = payload.lastLogIndex, candidateLastLogTerm = payload.lastLogTerm;
         var greaterTerm = currentTerm > proposedTerm ? currentTerm : proposedTerm;
         var voteGranted = ((votedFor === null || votedFor === candidateId) &&
-            candidateLastLogTerm > currentTerm ||
-            (candidateLastLogTerm === currentTerm &&
-                candidateLastLogIndex >= log.getLastEntry().index));
+            (proposedTerm >= currentTerm) &&
+            (candidateLastLogTerm > log.getLastEntry().termReceived ||
+                (candidateLastLogTerm === log.getLastEntry().termReceived &&
+                    candidateLastLogIndex >= log.getLastEntry().index)));
         if (voteGranted) {
             setNode(node.vote(candidateId).term(greaterTerm));
         }
@@ -483,6 +484,11 @@ define("raft-core/network", ["require", "exports", "raft-core/raftNode", "raft-c
             setNode(node.term(greaterTerm));
             becomeFollowerCallback();
             // setNode(node.becomeFollower());
+        }
+        if (!voteGranted) {
+            console.log('VOTE REJECTED', votedFor, candidateId);
+            console.log(candidateLastLogTerm, log.getLastEntry().termReceived);
+            console.log(candidateLastLogIndex, log.getLastEntry().index);
         }
         return {
             term: greaterTerm,
@@ -792,7 +798,14 @@ define("raft-core/api", ["require", "exports", "raft-core/raftNode", "raft-core/
         if (window.online !== false) {
             network_1.broadcastRequestVoteRpc(getNode, setNode, function () {
                 console.log('becomeCandidate: BECOME FOLLOWER INVOKED');
-                step.apply(null, __spreadArrays(Array.from(arguments), ['BecomeFollower']));
+                step.apply(null, [
+                    [getNode, setNode],
+                    [setFollowerTimer, clearFollowerTimer],
+                    [setCandidateTimer, clearCandidateTimer],
+                    [setLeaderTimer, clearLeaderTimer],
+                    [rpcInvoke, rpcReceive],
+                    'BecomeFollower'
+                ]);
             }, rpcInvoke).then(function (majorityGranted) {
                 if (majorityGranted) {
                     setNode(getNode().initializeNextIndices());
@@ -828,7 +841,14 @@ define("raft-core/api", ["require", "exports", "raft-core/raftNode", "raft-core/
         if (window.online !== false) {
             network_1.broadcastAppendEntriesRpc(getNode, setNode, ["heartbeat-" + Date.now()], function () {
                 console.log('becomeLeader: BECOME FOLLOWER INVOKED');
-                step.apply(null, __spreadArrays(Array.from(arguments), ['BecomeFollower']));
+                step.apply(null, [
+                    [getNode, setNode],
+                    [setFollowerTimer, clearFollowerTimer],
+                    [setCandidateTimer, clearCandidateTimer],
+                    [setLeaderTimer, clearLeaderTimer],
+                    [rpcInvoke, rpcReceive],
+                    'BecomeFollower'
+                ]);
             }, rpcInvoke);
         }
         setLeaderTimer(function () {
@@ -844,9 +864,18 @@ define("rtc/client/src/main", ["require", "exports", "rtc/client/src/lib/uuid", 
         main();
     });
     window.online = true;
-    window.takeOffline = function () { return window.online = false; };
-    window.takeOnline = function () { return window.online = true; };
+    window.takeOffline = function () {
+        window.online = false;
+        document.getElementById('offline').disabled = true;
+        document.getElementById('online').disabled = false;
+    };
+    window.takeOnline = function () {
+        window.online = true;
+        document.getElementById('online').disabled = true;
+        document.getElementById('offline').disabled = false;
+    };
     function main() {
+        document.getElementById('online').disabled = true;
         var uuid = uuid_1.createUUID();
         var serverConnection = new WebSocket('wss://' + window.location.hostname + ':8443');
         var dataChannels = new Map();

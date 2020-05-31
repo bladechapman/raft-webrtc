@@ -74,10 +74,13 @@ export function receiveRequestVoteRpc<T>(
 
     const voteGranted = (
         (votedFor === null || votedFor === candidateId) &&
-        candidateLastLogTerm > currentTerm ||
+        (proposedTerm >= currentTerm) &&
         (
-            candidateLastLogTerm === currentTerm &&
-            candidateLastLogIndex >= log.getLastEntry().index
+            candidateLastLogTerm > log.getLastEntry().termReceived ||
+            (
+                candidateLastLogTerm === log.getLastEntry().termReceived &&
+                candidateLastLogIndex >= log.getLastEntry().index
+            )
         )
     );
 
@@ -89,6 +92,12 @@ export function receiveRequestVoteRpc<T>(
         setNode(node.term(greaterTerm));
         becomeFollowerCallback();
         // setNode(node.becomeFollower());
+    }
+
+    if (!voteGranted) {
+        console.log('VOTE REJECTED', votedFor, candidateId);
+        console.log(candidateLastLogTerm, log.getLastEntry().termReceived)
+        console.log(candidateLastLogIndex, log.getLastEntry().index);
     }
 
     return {

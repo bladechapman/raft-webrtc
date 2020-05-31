@@ -276,7 +276,14 @@ function becomeCandidate(
             setNode,
             function () {
                 console.log('becomeCandidate: BECOME FOLLOWER INVOKED');
-                step.apply(null, [...Array.from(arguments), 'BecomeFollower'])
+                step.apply(null, [
+                    [getNode, setNode],
+                    [setFollowerTimer, clearFollowerTimer],
+                    [setCandidateTimer, clearCandidateTimer],
+                    [setLeaderTimer, clearLeaderTimer],
+                    [rpcInvoke, rpcReceive],
+                    'BecomeFollower'
+                ])
             },
             rpcInvoke
         ).then(majorityGranted => {
@@ -348,7 +355,14 @@ function becomeLeader(
             [`heartbeat-${Date.now()}`],
             function () {
                 console.log('becomeLeader: BECOME FOLLOWER INVOKED')
-                step.apply(null, [...Array.from(arguments), 'BecomeFollower'])
+                step.apply(null, [
+                    [getNode, setNode],
+                    [setFollowerTimer, clearFollowerTimer],
+                    [setCandidateTimer, clearCandidateTimer],
+                    [setLeaderTimer, clearLeaderTimer],
+                    [rpcInvoke, rpcReceive],
+                    'BecomeFollower'
+                ])
             },
             rpcInvoke
         )

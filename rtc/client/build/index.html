@@ -4,14 +4,47 @@
   require('rtc/client/src/main');
 </script>
 
-<body>
+<style>
 
-  <div id="history"></div>
-  <input id="submission" type="text" placeholder="Enter here..."></input>
-  <button id="send" disabled onclick="send()">Send</button>
-  <button id="call" onclick="call(true)">Call</button>
-  <button id="begin" disabled onclick="beginRaft()">Begin</button>
-  <button id="offline" onclick="takeOffline()">Take Offline</button>
-  <button id="offline" onclick="takeOnline()">Take Online</button>
+.row {
+  display: flex;
+  flex-direction: row;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+}
+
+#history {
+  flex-grow: 1;
+}
+
+#info {
+}
+
+#interaction * {
+  margin: 3px;
+}
+
+</style>
+
+<body>
+  <div class="row">
+    <div id="history"></div>
+
+    <div class="column">
+      <div id="info"></div>
+      <div id="interaction" class="column">
+        <input id="submission" type="text" placeholder="Enter here..."></input>
+        <button id="send" disabled onclick="send()">Send</button>
+        <button id="call" onclick="call(true)">Call</button>
+        <button id="begin" disabled onclick="beginRaft()">Begin</button>
+        <button id="offline" onclick="takeOffline()">Take Offline</button>
+        <button id="online" onclick="takeOnline()">Take Online</button>
+      </div>
+    </div>
+
+  </div>
 </body>
 
