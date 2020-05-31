@@ -129,8 +129,12 @@ define("rpc/rpc", ["require", "exports"], function (require, exports) {
     "use strict";
     exports.__esModule = true;
     function rpcRegister(uuid, send, delegate) {
+        console.log('---- RPC REGISTER');
         var callIds = {};
         function rpcReceive(senderPayload) {
+            if (window.online === false)
+                return;
+            console.log('RPC RECEIVE', senderPayload);
             var isInvocation = senderPayload.__invoke === true;
             if (isInvocation)
                 rpcRespond(senderPayload);
@@ -171,6 +175,7 @@ define("rpc/rpc", ["require", "exports"], function (require, exports) {
                 __invoke: true,
                 rpc: true
             };
+            console.log('RPC INVOKE', args);
             var responsePromise = new Promise(function (res, rej) {
                 // TODO: Add timeout?
                 callIds[callId] = [res, rej];
@@ -226,7 +231,8 @@ define("raft-core-2/raftNode", ["require", "exports"], function (require, export
             // console.log(this.persistentState.id, 'newCommit', newIndex);
             console.log(this.persistentState.log.slice(0, newIndex + 1).entries
                 .map(function (e) { return e.command; })
-                .filter(function (e) { return e !== null && e.indexOf('heartbeat') === -1; }));
+            // .filter(e => e !== null && (e as unknown as string).indexOf('heartbeat') === -1)
+            );
             return new RaftNode(this.persistentState, this.volatileState.commit(newIndex), this.leaderState, this.mode);
         };
         RaftNode.prototype.apply = function (newIndex) {
@@ -609,10 +615,10 @@ define("raft-core-2/network", ["require", "exports", "raft-core-2/raftNode", "ra
                 setNode(newNode.commit(newCommitIndex));
             }
             setNode(newNode.discoverNewLeader(leaderId));
+            becomeFollowerCallback();
         }
         if (leaderTerm > receiverTerm) {
             setNode(node.term(leaderTerm));
-            becomeFollowerCallback();
         }
         return {
             success: success,
@@ -629,7 +635,7 @@ define("raft-core-2/api", ["require", "exports", "raft-core-2/raftNode", "raft-c
         var handle;
         function setTimer(callback, timeout) {
             clearTimeout(handle);
-            var t = timeout || Math.random() * 500 + 1400;
+            var t = timeout || Math.random() * 500 + 3000;
             handle = setTimeout(callback, t);
         }
         function clearTimer() {
@@ -657,6 +663,7 @@ define("raft-core-2/api", ["require", "exports", "raft-core-2/raftNode", "raft-c
             'receiveAppendEntries': function (payload) {
                 clearFollowerTimer();
                 var r = network_1.receiveAppendEntriesRpc(getNode, setNode, payload, function () {
+                    console.log('receive append callback invoked');
                     step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], [rpcInvoke, rpcReceive], 'BecomeFollower');
                 });
                 return r;
@@ -699,6 +706,7 @@ define("raft-core-2/api", ["require", "exports", "raft-core-2/raftNode", "raft-c
             [setLeaderTimer, clearLeaderTimer],
             [rpcInvoke, rpcReceive]
         ];
+        console.log('STEP', event);
         if (event === 'BecomeFollower')
             becomeFollower.apply(null, args);
         else if (event === 'FollowerTimeout')
@@ -728,12 +736,14 @@ define("raft-core-2/api", ["require", "exports", "raft-core-2/raftNode", "raft-c
         if (!maybeLastKnownLeader) {
             return new Promise(function (res, rej) { return res({ status: 'UNKNOWN LEADER' }); });
         }
-        else if (maybeLastKnownLeader === persistentState.id) {
-            // invoke append entries as leader
-            return network_1.broadcastAppendEntriesRpc(getNode, setNode, [data], becomeFollowerCallback, rpcInvoke);
-        }
-        else {
-            return rpcInvoke(maybeLastKnownLeader, 'receiveClientRequest', [{ command: 'append', data: data }]);
+        else if (window.online !== false) {
+            if (maybeLastKnownLeader === persistentState.id) {
+                // invoke append entries as leader
+                return network_1.broadcastAppendEntriesRpc(getNode, setNode, [data], becomeFollowerCallback, rpcInvoke);
+            }
+            else {
+                return rpcInvoke(maybeLastKnownLeader, 'receiveClientRequest', [{ command: 'append', data: data }]);
+            }
         }
     }
     exports.handleClientRequest = handleClientRequest;
@@ -749,6 +759,7 @@ define("raft-core-2/api", ["require", "exports", "raft-core-2/raftNode", "raft-c
         clearFollowerTimer();
         setNode(node.becomeFollower());
         setFollowerTimer(function () {
+            console.log('FOLLOWER TIMEOUT EXPIRED');
             step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], [rpcInvoke, rpcReceive], 'FollowerTimeout');
         });
     }
@@ -775,13 +786,18 @@ define("raft-core-2/api", ["require", "exports", "raft-core-2/raftNode", "raft-c
             .vote(null)
             .becomeCandidate());
         console.log("NEW CANDIDATE: " + getNode().persistentState.id, getNode().persistentState.currentTerm);
-        network_1.broadcastRequestVoteRpc(getNode, setNode, function () { step.apply(null, __spreadArrays(Array.from(arguments), ['BecomeFollower'])); }, rpcInvoke).then(function (majorityGranted) {
-            if (majorityGranted) {
-                setNode(getNode().initializeNextIndices());
-                console.log("NEW LEADER: " + getNode().persistentState.id, getNode().persistentState.currentTerm);
-                step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], [rpcInvoke, rpcReceive], 'BecomeLeader');
-            }
-        });
+        if (window.online !== false) {
+            network_1.broadcastRequestVoteRpc(getNode, setNode, function () {
+                console.log('becomeCandidate: BECOME FOLLOWER INVOKED');
+                step.apply(null, __spreadArrays(Array.from(arguments), ['BecomeFollower']));
+            }, rpcInvoke).then(function (majorityGranted) {
+                if (majorityGranted) {
+                    setNode(getNode().initializeNextIndices());
+                    console.log("NEW LEADER: " + getNode().persistentState.id, getNode().persistentState.currentTerm);
+                    step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], [rpcInvoke, rpcReceive], 'BecomeLeader');
+                }
+            });
+        }
         setCandidateTimer(function () {
             step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], [rpcInvoke, rpcReceive], 'CandidateTimeout');
         });
@@ -806,7 +822,12 @@ define("raft-core-2/api", ["require", "exports", "raft-core-2/raftNode", "raft-c
         clearFollowerTimer();
         setNode(node.becomeLeader());
         // TODO: fix the heartbeat type
-        network_1.broadcastAppendEntriesRpc(getNode, setNode, ["hearbeat-" + Date.now()], function () { step.apply(null, __spreadArrays(Array.from(arguments), ['BecomeFollower'])); }, rpcInvoke);
+        if (window.online !== false) {
+            network_1.broadcastAppendEntriesRpc(getNode, setNode, ["hearbeat-" + Date.now()], function () {
+                console.log('becomeLeader: BECOME FOLLOWER INVOKED');
+                step.apply(null, __spreadArrays(Array.from(arguments), ['BecomeFollower']));
+            }, rpcInvoke);
+        }
         setLeaderTimer(function () {
             step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], [rpcInvoke, rpcReceive], 'BecomeLeader');
         }, 1300 + Math.random() * 200);
@@ -819,6 +840,9 @@ define("rtc/client/src/main", ["require", "exports", "rtc/client/src/lib/uuid", 
         console.log('DOM READY');
         main();
     });
+    window.online = true;
+    window.takeOffline = function () { return window.online = false; };
+    window.takeOnline = function () { return window.online = true; };
     function main() {
         var uuid = uuid_1.createUUID();
         var serverConnection = new WebSocket('wss://' + window.location.hostname + ':8443');
@@ -833,20 +857,6 @@ define("rtc/client/src/main", ["require", "exports", "rtc/client/src/lib/uuid", 
         var _c = nodeFns[2], setCandidateTimer = _c[0], clearCandidateTimer = _c[1];
         var _d = nodeFns[3], setLeaderTimer = _d[0], clearLeaderTimer = _d[1];
         var _e = nodeFns[4], rpcInvoke = _e[0], rpcReceive = _e[1];
-        // const [rpcInvoke, rpcReceive] = rpcRegister(
-        //     uuid, 
-        //     (payload) => {
-        //         const target = payload.target;
-        //         const channel = dataChannels.get(target);
-        //         channel.send(JSON.stringify(payload));
-        //     },
-        //     {
-        //         printAndAcknowledge: function(p) {
-        //             console.log(`RECEIVED, ${p}`);
-        //             return `ACK ${uuid}`;
-        //         }
-        //     }
-        // )
         serverConnection.onmessage = function (message) {
             var parsed = JSON.parse(message.data);
             if (parsed.discover) {

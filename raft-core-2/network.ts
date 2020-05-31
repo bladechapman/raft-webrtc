@@ -300,13 +300,13 @@ export function receiveAppendEntriesRpc<T>(
         }
 
         setNode(newNode.discoverNewLeader(leaderId));
+        becomeFollowerCallback();
     }
 
     if (leaderTerm > receiverTerm) {
         setNode(
             node.term(leaderTerm)
         )
-        becomeFollowerCallback();
     }
 
     return {

@@ -9,6 +9,11 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
+(window as any).online = true;
+(window as any).takeOffline = () => (window as any).online = false;
+(window as any).takeOnline = () => (window as any).online = true;
+
+
 function main() {
     const uuid = createUUID();
     const serverConnection = new WebSocket('wss://' + window.location.hostname + ':8443');
@@ -28,21 +33,6 @@ function main() {
     const [setCandidateTimer, clearCandidateTimer] = nodeFns[2];
     const [setLeaderTimer, clearLeaderTimer] = nodeFns[3];
     const [rpcInvoke, rpcReceive] = nodeFns[4];
-
-    // const [rpcInvoke, rpcReceive] = rpcRegister(
-    //     uuid, 
-    //     (payload) => {
-    //         const target = payload.target;
-    //         const channel = dataChannels.get(target);
-    //         channel.send(JSON.stringify(payload));
-    //     },
-    //     {
-    //         printAndAcknowledge: function(p) {
-    //             console.log(`RECEIVED, ${p}`);
-    //             return `ACK ${uuid}`;
-    //         }
-    //     }
-    // )
 
     serverConnection.onmessage = (message) => {
         const parsed = JSON.parse(message.data);

@@ -4,9 +4,14 @@ export function rpcRegister(
     send,
     delegate
 ) {
+    console.log('---- RPC REGISTER');
     const callIds = {};
 
     function rpcReceive(senderPayload) {
+        if ((window as any).online === false) return;
+
+        console.log('RPC RECEIVE', senderPayload);
+
         const isInvocation = senderPayload.__invoke === true;
         if (isInvocation) rpcRespond(senderPayload);
         else rpcHandleResponse(senderPayload);
@@ -62,6 +67,8 @@ export function rpcRegister(
             __invoke: true,
             rpc: true
         };
+
+        console.log('RPC INVOKE', args);
 
         let responsePromise = new Promise((res, rej) => {
             // TODO: Add timeout?

@@ -16,7 +16,7 @@ function useTimer():
 
     function setTimer(callback: any, timeout?: number) {
         clearTimeout(handle);
-        const t = timeout || Math.random() * 500 + 1400
+        const t = timeout || Math.random() * 500 + 3000
         handle = setTimeout(callback, t);
     }
 
@@ -85,6 +85,7 @@ export function useNode(
                     setNode,
                     payload,
                     () => {
+                        console.log('receive append callback invoked')
                         step(
                             [getNode, setNode],
                             [setFollowerTimer, clearFollowerTimer],
@@ -159,6 +160,8 @@ export function step(
         [rpcInvoke, rpcReceive]
     ];
 
+    console.log('STEP', event);
+
     if (event === 'BecomeFollower') becomeFollower.apply(null, args);
     else if (event === 'FollowerTimeout') followerTimeout.apply(null, args);
     else if (event === 'BecomeCandidate') becomeCandidate.apply(null, args);
@@ -187,18 +190,20 @@ export function handleClientRequest(
     if (!maybeLastKnownLeader) {
         return new Promise((res, rej) => res({ status: 'UNKNOWN LEADER' }))
     }
-    else if (maybeLastKnownLeader === persistentState.id) {
-        // invoke append entries as leader
-        return broadcastAppendEntriesRpc(
-            getNode,
-            setNode,
-            [data],
-            becomeFollowerCallback,
-            rpcInvoke
-        );
-    }
-    else {
-        return rpcInvoke(maybeLastKnownLeader, 'receiveClientRequest', [{ command: 'append', data }]);
+    else if ((window as any).online !== false) {
+        if (maybeLastKnownLeader === persistentState.id) {
+            // invoke append entries as leader
+            return broadcastAppendEntriesRpc(
+                getNode,
+                setNode,
+                [data],
+                becomeFollowerCallback,
+                rpcInvoke
+            );
+        }
+        else {
+            return rpcInvoke(maybeLastKnownLeader, 'receiveClientRequest', [{ command: 'append', data }]);
+        }
     }
 }
 
@@ -216,6 +221,7 @@ function becomeFollower(
     setNode(node.becomeFollower());
 
     setFollowerTimer(() => {
+        console.log('FOLLOWER TIMEOUT EXPIRED');
         step(
             [getNode, setNode],
             [setFollowerTimer, clearFollowerTimer],
@@ -265,26 +271,31 @@ function becomeCandidate(
 
     console.log(`NEW CANDIDATE: ${getNode().persistentState.id}`, getNode().persistentState.currentTerm);
 
-    broadcastRequestVoteRpc(
-        getNode,
-        setNode,
-        function () { step.apply(null, [...Array.from(arguments), 'BecomeFollower']) },
-        rpcInvoke
-    ).then(majorityGranted => {
-        if (majorityGranted) {
-            setNode(getNode().initializeNextIndices());
+    if ((window as any).online !== false) {
+        broadcastRequestVoteRpc(
+            getNode,
+            setNode,
+            function () {
+                console.log('becomeCandidate: BECOME FOLLOWER INVOKED');
+                step.apply(null, [...Array.from(arguments), 'BecomeFollower'])
+            },
+            rpcInvoke
+        ).then(majorityGranted => {
+            if (majorityGranted) {
+                setNode(getNode().initializeNextIndices());
 
-            console.log(`NEW LEADER: ${getNode().persistentState.id}`, getNode().persistentState.currentTerm);
-            step(
-                [getNode, setNode],
-                [setFollowerTimer, clearFollowerTimer],
-                [setCandidateTimer, clearCandidateTimer],
-                [setLeaderTimer, clearLeaderTimer],
-                [rpcInvoke, rpcReceive],
-                'BecomeLeader'
-            );
-        }
-    });
+                console.log(`NEW LEADER: ${getNode().persistentState.id}`, getNode().persistentState.currentTerm);
+                step(
+                    [getNode, setNode],
+                    [setFollowerTimer, clearFollowerTimer],
+                    [setCandidateTimer, clearCandidateTimer],
+                    [setLeaderTimer, clearLeaderTimer],
+                    [rpcInvoke, rpcReceive],
+                    'BecomeLeader'
+                );
+            }
+        });
+    }
 
     setCandidateTimer(() => {
         step(
@@ -331,13 +342,18 @@ function becomeLeader(
     setNode(node.becomeLeader());
 
     // TODO: fix the heartbeat type
-    broadcastAppendEntriesRpc(
-        getNode,
-        setNode,
-        [`hearbeat-${Date.now()}`],
-        function () { step.apply(null, [...Array.from(arguments), 'BecomeFollower']) },
-        rpcInvoke
-    )
+    if ((window as any).online !== false) {
+        broadcastAppendEntriesRpc(
+            getNode,
+            setNode,
+            [`hearbeat-${Date.now()}`],
+            function () {
+                console.log('becomeLeader: BECOME FOLLOWER INVOKED')
+                step.apply(null, [...Array.from(arguments), 'BecomeFollower'])
+            },
+            rpcInvoke
+        )
+    }
 
     setLeaderTimer(() => {
         step(
