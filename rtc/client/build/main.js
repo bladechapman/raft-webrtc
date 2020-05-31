@@ -231,6 +231,7 @@ define("raft-core-2/raftNode", ["require", "exports"], function (require, export
             // console.log(this.persistentState.id, 'newCommit', newIndex);
             console.log(this.persistentState.log.slice(0, newIndex + 1).entries
                 .map(function (e) { return e.command; })
+                .filter(function (e) { return e !== null && e.indexOf('heartbeat') === -1; })
             // .filter(e => e !== null && (e as unknown as string).indexOf('heartbeat') === -1)
             );
             return new RaftNode(this.persistentState, this.volatileState.commit(newIndex), this.leaderState, this.mode);
@@ -823,7 +824,7 @@ define("raft-core-2/api", ["require", "exports", "raft-core-2/raftNode", "raft-c
         setNode(node.becomeLeader());
         // TODO: fix the heartbeat type
         if (window.online !== false) {
-            network_1.broadcastAppendEntriesRpc(getNode, setNode, ["hearbeat-" + Date.now()], function () {
+            network_1.broadcastAppendEntriesRpc(getNode, setNode, ["heartbeat-" + Date.now()], function () {
                 console.log('becomeLeader: BECOME FOLLOWER INVOKED');
                 step.apply(null, __spreadArrays(Array.from(arguments), ['BecomeFollower']));
             }, rpcInvoke);

@@ -346,7 +346,7 @@ function becomeLeader(
         broadcastAppendEntriesRpc(
             getNode,
             setNode,
-            [`hearbeat-${Date.now()}`],
+            [`heartbeat-${Date.now()}`],
             function () {
                 console.log('becomeLeader: BECOME FOLLOWER INVOKED')
                 step.apply(null, [...Array.from(arguments), 'BecomeFollower'])

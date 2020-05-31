@@ -88,6 +88,7 @@ export class RaftNode<T> {
 
         console.log(this.persistentState.log.slice(0, newIndex + 1).entries
             .map(e => e.command)
+            .filter(e => e !== null && (e as any).indexOf('heartbeat') === -1)
             // .filter(e => e !== null && (e as unknown as string).indexOf('heartbeat') === -1)
         )
 
