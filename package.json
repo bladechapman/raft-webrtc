@@ -10,6 +10,7 @@
   },
   "devDependencies": {
     "@types/node": "^13.13.2",
+    "puppeteer": "^3.3.0",
     "ts-node": "^8.9.0",
     "typescript": "^3.8.3"
   },
