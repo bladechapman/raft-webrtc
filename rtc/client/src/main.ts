@@ -128,6 +128,8 @@ function main() {
                 },
                 text
             );
+
+            r.then((e) => console.log('COMPLETE', e));
         }
     }
 
@@ -159,6 +161,31 @@ function main() {
             .map(e => `<div>${e}</div>`).join('');
 
         (document.getElementById('history') as HTMLElement).innerHTML = elems;
+    }
+
+    (window as any).benchmark = async () => {
+        let on = true;
+        let counter = 0;
+        setTimeout(() => { on = false }, 1000 * 10);
+        while (on) {
+            await handleClientRequest(
+                [getNode, setNode],
+                [rpcInvoke, rpcReceive],
+                function () {
+                    step(
+                        [getNode, setNode],
+                        [setFollowerTimer, clearFollowerTimer],
+                        [setCandidateTimer, clearCandidateTimer],
+                        [setLeaderTimer, clearLeaderTimer],
+                        [rpcInvoke, rpcReceive],
+                        'BecomeFollower'
+                    );
+                },
+                `${counter}`
+            ).then(() => (counter = counter + 1));
+        }
+        console.log('BENCHMARK COMPLETE');
+        (window as any).lastBench = counter;
     }
 }
 

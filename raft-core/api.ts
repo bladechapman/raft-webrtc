@@ -84,7 +84,6 @@ export function useNode(
                     setNode,
                     payload,
                     () => {
-                        console.log('receive append callback invoked')
                         step(
                             [getNode, setNode],
                             [setFollowerTimer, clearFollowerTimer],
@@ -159,7 +158,7 @@ export function step(
         [rpcInvoke, rpcReceive]
     ];
 
-    console.log('STEP', event);
+    // console.log('STEP', event);
 
     if (event === 'BecomeFollower') becomeFollower.apply(null, args);
     else if (event === 'FollowerTimeout') followerTimeout.apply(null, args);
@@ -191,6 +190,7 @@ export function handleClientRequest(
     }
     else if ((window as any).online !== false) {
         if (maybeLastKnownLeader === persistentState.id) {
+            console.log('HANDLING AS LEADER');
             // invoke append entries as leader
             return broadcastAppendEntriesRpc(
                 getNode,
@@ -201,8 +201,12 @@ export function handleClientRequest(
             );
         }
         else {
+            console.log('FORWARDING');
             return rpcInvoke(maybeLastKnownLeader, 'receiveClientRequest', [{ command: 'append', data }]);
         }
+    }
+    else {
+        return new Promise((res, rej) => 'offline');
     }
 }
 

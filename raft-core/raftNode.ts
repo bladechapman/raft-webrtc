@@ -91,11 +91,6 @@ export class RaftNode<T> {
                 this.persistentState.log.slice(0, newIndex + 1).entries
             );
         }
-        // console.log(this.persistentState.log.slice(0, newIndex + 1).entries
-        //     .map(e => e.command)
-        //     .filter(e => e !== null && (e as any).indexOf('heartbeat') === -1)
-        //     // .filter(e => e !== null && (e as unknown as string).indexOf('heartbeat') === -1)
-        // )
 
         return new RaftNode(
             this.persistentState,
@@ -142,7 +137,7 @@ export class RaftNode<T> {
     }
 
     becomeLeader() {
-        console.log('BECOMING LEADER');
+        // console.log('BECOMING LEADER');
         return new RaftNode(
             this.persistentState,
             this.volatileState,

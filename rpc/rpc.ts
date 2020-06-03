@@ -10,7 +10,7 @@ export function rpcRegister(
     function rpcReceive(senderPayload) {
         if ((window as any).online === false) return;
 
-        console.log('RPC RECEIVE', senderPayload);
+        // console.log('RPC RECEIVE', senderPayload);
 
         const isInvocation = senderPayload.__invoke === true;
         if (isInvocation) rpcRespond(senderPayload);
@@ -31,7 +31,7 @@ export function rpcRegister(
         res(result);
     }
 
-    function rpcRespond(senderPayload) {
+    async function rpcRespond(senderPayload) {
         const {
             method,
             args: argsString,
@@ -42,7 +42,7 @@ export function rpcRegister(
 
         // invoke whatever method is requested
         const args = JSON.parse(argsString);
-        const result = delegate[method].apply(null, args);
+        const result = await delegate[method].apply(null, args);
 
         const responsePayload = {
             result,
@@ -68,7 +68,7 @@ export function rpcRegister(
             rpc: true
         };
 
-        console.log('RPC INVOKE', args);
+        // console.log('RPC INVOKE', args);
 
         let responsePromise = new Promise((res, rej) => {
             // TODO: Add timeout?
