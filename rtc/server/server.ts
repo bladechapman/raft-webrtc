@@ -8,9 +8,6 @@ const config = {
     cert: fs.readFileSync('rtc/server/cert.pem')
 };
 
-const maxListenersExceededWarning = require('max-listeners-exceeded-warning');
-maxListenersExceededWarning();
-
 function handleRequest(request, response) {
 
     if (request.url === '/') {
