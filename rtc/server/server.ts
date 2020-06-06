@@ -8,6 +8,9 @@ const config = {
     cert: fs.readFileSync('rtc/server/cert.pem')
 };
 
+const maxListenersExceededWarning = require('max-listeners-exceeded-warning');
+maxListenersExceededWarning();
+
 function handleRequest(request, response) {
 
     if (request.url === '/') {
@@ -26,7 +29,10 @@ httpsServer.listen(HTTPS_PORT, '0.0.0.0');
 
 // =======
 
-const wss = new WS.Server({ server: httpsServer });
+const wss = new WS.Server({
+    server: httpsServer,
+    concurrencyLimit: 100
+});
 
 
 const registeredConnections = new Map();

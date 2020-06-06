@@ -16,16 +16,71 @@
   flex-direction: column;
 }
 
+#right {
+  padding: 0px 20px;
+}
+
 #history {
   flex-grow: 1;
 }
 
 #info {
+  font-family: courier;
+  font-size: 12px;
 }
+
+#info * {
+  padding: 3px;
+}
+
+#node-type {
+  border-radius: 5px;
+}
+#node-type.leader { background-color: green; }
+#node-type.candidate { background-color: blue; }
+#node-type.follower { background-color: red; }
 
 #interaction * {
   margin: 3px;
 }
+
+#history {
+  font-family: arial;
+  display: flex;
+  flex-direction: column;
+}
+
+#history .payload {
+  margin: 10px 0px;
+}
+#history .payload.outgoing .container {
+  float: right;
+  text-align: right;
+}
+#history .payload.incoming .container {
+  float: left;
+  text-align: left;
+}
+#history .payload .container .sender {
+  font-size: 7px;
+  color: gray;
+}
+#history .payload .container .message {
+  font-size: 15px;
+  border-radius: 10px;
+  padding: 6px;
+}
+#history .payload.outgoing .container .message {
+  background-color: #0084ff;
+  color: white;
+  float: right;
+}
+#history .payload.incoming .container .message {
+  background-color: #f1f0f0;
+  color: black;
+  float: left;
+}
+
 
 </style>
 
@@ -33,8 +88,12 @@
   <div class="row">
     <div id="history"></div>
 
-    <div class="column">
-      <div id="info"></div>
+    <div id="right" class="column">
+      <div id="info">
+        <div id="node-id"></div>
+        <div id="node-type">Node Type: Uninitialized</div>
+        <div id="term-number">Term Number: Uninitialized</div>
+      </div>
       <div id="interaction" class="column">
         <input id="submission" type="text" placeholder="Enter here..."></input>
         <button id="send" disabled onclick="send()">Send</button>
@@ -42,7 +101,7 @@
         <button id="begin" disabled onclick="beginRaft()">Begin</button>
         <button id="offline" onclick="takeOffline()">Take Offline</button>
         <button id="online" onclick="takeOnline()">Take Online</button>
-        <button id="online" onclick="benchmark()">Benchmark</button>
+        <!-- <button id="benchmark" onclick="benchmark()">Benchmark</button> -->
       </div>
     </div>
 

@@ -137,7 +137,11 @@ export class RaftNode<T> {
     }
 
     becomeLeader() {
-        // console.log('BECOMING LEADER');
+
+        if ((window as any).becameLeader) {
+            (window as any).becameLeader();
+        }
+
         return new RaftNode(
             this.persistentState,
             this.volatileState,
@@ -147,6 +151,11 @@ export class RaftNode<T> {
     }
 
     becomeCandidate() {
+
+        if ((window as any).becameCandidate) {
+            (window as any).becameCandidate();
+        }
+
         return new RaftNode(
             this.persistentState,
             this.volatileState,
@@ -156,6 +165,11 @@ export class RaftNode<T> {
     }
 
     becomeFollower() {
+
+        if ((window as any).becameFollower) {
+            (window as any).becameFollower();
+        }
+
         return new RaftNode(
             this.persistentState,
             this.volatileState,
@@ -275,6 +289,11 @@ class PersistentState<T> {
     }
 
     term(newTerm: number) {
+
+        if ((window as any).newTerm) {
+            (window as any).newTerm(newTerm);
+        }
+
         return new PersistentState(
             this.log,
             newTerm,

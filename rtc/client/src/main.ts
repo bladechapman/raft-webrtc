@@ -26,6 +26,10 @@ function main() {
     (document.getElementById('online') as HTMLButtonElement).disabled = true;
 
     const uuid = createUUID();
+    const ni = document.getElementById('node-id');
+    if (ni) { ni.innerHTML = `Node ID: ${uuid}`; }
+
+
     const serverConnection = new WebSocket('wss://' + window.location.hostname + ':8443');
     const dataChannels = new Map();
 
@@ -126,7 +130,7 @@ function main() {
                         'BecomeFollower'
                     );
                 },
-                text
+                `${uuid}::${text}`
             );
 
             r.then((e) => console.log('COMPLETE', e));
@@ -158,7 +162,18 @@ function main() {
         const elems = commits
             .map(e => e.command)
             .filter(e => e !== null && (e as unknown as string).indexOf('heartbeat') === -1)
-            .map(e => `<div>${e}</div>`).join('');
+            .map(payload => {
+                const [sender, message] = payload.split('::');
+                return (
+                    `<div class="payload ${sender === uuid ? "outgoing" : "incoming"}">` +
+                        `<div class="container">` +
+                            `<div class="sender">${sender}</div>` +
+                            `<div class="message">${message}</div>` +
+                        `</div>` +
+                    `</div>`
+                )
+            })
+            .join('');
 
         (document.getElementById('history') as HTMLElement).innerHTML = elems;
     }
@@ -181,11 +196,42 @@ function main() {
                         'BecomeFollower'
                     );
                 },
-                `${counter}`
+                `${uuid}::${counter}`
             ).then(() => (counter = counter + 1));
         }
         console.log('BENCHMARK COMPLETE');
         (window as any).lastBench = counter;
+    }
+
+    (window as any).becameLeader = () => {
+        const nt = document.getElementById('node-type');
+        if (nt) {
+            nt.innerHTML = "Node Type: Leader"
+            nt.className = "leader"
+        }
+    }
+
+    (window as any).becameCandidate = () => {
+        const nt = document.getElementById('node-type');
+        if (nt) {
+            nt.innerHTML = "Node Type: Candidate"
+            nt.className = "candidate"
+        }
+    }
+
+    (window as any).becameFollower = () => {
+        const nt = document.getElementById('node-type');
+        if (nt) {
+            nt.innerHTML = "Node Type: Follower"
+            nt.className = "follower"
+        }
+    }
+
+    (window as any).newTerm = (newTerm) => {
+        const tn = document.getElementById('term-number');
+        if (tn) {
+            tn.innerHTML = `Term Number: ${newTerm}`;
+        }
     }
 }
 

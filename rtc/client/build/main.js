@@ -297,13 +297,21 @@ define("raft-core/raftNode", ["require", "exports"], function (require, exports)
             return new RaftNode(this.persistentState, this.volatileState, this.leaderState.newMatchIndex(peerId, newMatchIndex), this.mode);
         };
         RaftNode.prototype.becomeLeader = function () {
-            // console.log('BECOMING LEADER');
+            if (window.becameLeader) {
+                window.becameLeader();
+            }
             return new RaftNode(this.persistentState, this.volatileState, this.leaderState, Mode.Leader).discoverNewLeader(this.persistentState.id);
         };
         RaftNode.prototype.becomeCandidate = function () {
+            if (window.becameCandidate) {
+                window.becameCandidate();
+            }
             return new RaftNode(this.persistentState, this.volatileState, this.leaderState, Mode.Candidate);
         };
         RaftNode.prototype.becomeFollower = function () {
+            if (window.becameFollower) {
+                window.becameFollower();
+            }
             return new RaftNode(this.persistentState, this.volatileState, this.leaderState, Mode.Follower);
         };
         return RaftNode;
@@ -376,6 +384,9 @@ define("raft-core/raftNode", ["require", "exports"], function (require, exports)
             this.log = log;
         }
         PersistentState.prototype.term = function (newTerm) {
+            if (window.newTerm) {
+                window.newTerm(newTerm);
+            }
             return new PersistentState(this.log, newTerm, this.votedFor, this.id);
         };
         PersistentState.prototype.vote = function (candidateId) {
@@ -923,6 +934,10 @@ define("rtc/client/src/main", ["require", "exports", "rtc/client/src/lib/uuid", 
         var _this = this;
         document.getElementById('online').disabled = true;
         var uuid = uuid_1.createUUID();
+        var ni = document.getElementById('node-id');
+        if (ni) {
+            ni.innerHTML = "Node ID: " + uuid;
+        }
         var serverConnection = new WebSocket('wss://' + window.location.hostname + ':8443');
         var dataChannels = new Map();
         var nodeFns = api_1.useNode(uuid, function (payload) {
@@ -980,7 +995,7 @@ define("rtc/client/src/main", ["require", "exports", "rtc/client/src/lib/uuid", 
                 var text = submissionElem.value;
                 var r = api_1.handleClientRequest([getNode, setNode], [rpcInvoke, rpcReceive], function () {
                     api_1.step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], [rpcInvoke, rpcReceive], 'BecomeFollower');
-                }, text);
+                }, uuid + "::" + text);
                 r.then(function (e) { return console.log('COMPLETE', e); });
             }
         };
@@ -1005,7 +1020,16 @@ define("rtc/client/src/main", ["require", "exports", "rtc/client/src/lib/uuid", 
             var elems = commits
                 .map(function (e) { return e.command; })
                 .filter(function (e) { return e !== null && e.indexOf('heartbeat') === -1; })
-                .map(function (e) { return "<div>" + e + "</div>"; }).join('');
+                .map(function (payload) {
+                var _a = payload.split('::'), sender = _a[0], message = _a[1];
+                return ("<div class=\"payload " + (sender === uuid ? "outgoing" : "incoming") + "\">" +
+                    "<div class=\"container\">" +
+                    ("<div class=\"sender\">" + sender + "</div>") +
+                    ("<div class=\"message\">" + message + "</div>") +
+                    "</div>" +
+                    "</div>");
+            })
+                .join('');
             document.getElementById('history').innerHTML = elems;
         };
         window.benchmark = function () { return __awaiter(_this, void 0, void 0, function () {
@@ -1021,7 +1045,7 @@ define("rtc/client/src/main", ["require", "exports", "rtc/client/src/lib/uuid", 
                         if (!on) return [3 /*break*/, 3];
                         return [4 /*yield*/, api_1.handleClientRequest([getNode, setNode], [rpcInvoke, rpcReceive], function () {
                                 api_1.step([getNode, setNode], [setFollowerTimer, clearFollowerTimer], [setCandidateTimer, clearCandidateTimer], [setLeaderTimer, clearLeaderTimer], [rpcInvoke, rpcReceive], 'BecomeFollower');
-                            }, "" + counter).then(function () { return (counter = counter + 1); })];
+                            }, uuid + "::" + counter).then(function () { return (counter = counter + 1); })];
                     case 2:
                         _a.sent();
                         return [3 /*break*/, 1];
@@ -1032,6 +1056,33 @@ define("rtc/client/src/main", ["require", "exports", "rtc/client/src/lib/uuid", 
                 }
             });
         }); };
+        window.becameLeader = function () {
+            var nt = document.getElementById('node-type');
+            if (nt) {
+                nt.innerHTML = "Node Type: Leader";
+                nt.className = "leader";
+            }
+        };
+        window.becameCandidate = function () {
+            var nt = document.getElementById('node-type');
+            if (nt) {
+                nt.innerHTML = "Node Type: Candidate";
+                nt.className = "candidate";
+            }
+        };
+        window.becameFollower = function () {
+            var nt = document.getElementById('node-type');
+            if (nt) {
+                nt.innerHTML = "Node Type: Follower";
+                nt.className = "follower";
+            }
+        };
+        window.newTerm = function (newTerm) {
+            var tn = document.getElementById('term-number');
+            if (tn) {
+                tn.innerHTML = "Term Number: " + newTerm;
+            }
+        };
     }
     function registerDataChannels(uuid, peerUuids, dataChannels, serverConnection, rpcReceive) {
         // Create a RtcBidirectionalDataChannel for each discovered peer
