@@ -1,0 +1,62 @@
+<html>
+  <body>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@8.4.0/dist/mermaid.min.js"></script>
+    <script>
+      mermaid.initialize({
+        startOnLoad:true,
+        sequence: {
+          // showSequenceNumbers:true,
+          mirrorActors: true,
+          diagramMarginX: 200,
+          messageMargin: 50,
+        }
+      });
+    </script>
+
+    <div class="mermaid">
+      sequenceDiagram
+
+      ClientA ->>SignalingServer: register(A)
+      ClientB ->>SignalingServer: register(B)
+
+      SignalingServer ->>ClientB: discover(A)
+
+      ClientB ->> SignalingServer: offer(B)
+      SignalingServer ->> ClientA: offer(B)
+
+      ClientA ->> SignalingServer: answer(A, B)
+      SignalingServer ->> ClientB: answer(A, B)
+
+      Note left of ClientC: C calls now
+
+      ClientC ->> SignalingServer: register(C)
+      SignalingServer ->> ClientC: discover(A, B)
+      ClientC ->> SignalingServer: offer(C)
+
+      SignalingServer ->> ClientA: offer(C)
+      SignalingServer ->> ClientB: offer(C)
+
+      ClientA ->>SignalingServer: answer(A, C)
+      SignalingServer->>ClientC: answer(A, C)
+
+      ClientB ->>SignalingServer: answer(B, C)
+      SignalingServer->>ClientC: answer(B, C)
+
+
+
+
+    </div>
+  </body>
+</html>
+
+      <!-- Drive App ->>+ DriveWS: retrieveItemDetailsInFolders(folderId, partialData, includeHierarchy) -->
+      <!-- DriveWS -1->>- Drive App: { path, items: [{ id, etag }] } -->
+
+      <!-- Note left of Drive App: Compute the<br>changelist between<br>local cache and<br>network response<br>(by id, etag) -->
+
+      <!-- Drive App ->>+ DriveWS: retrieveItemDetails(updatedItems) -->
+      <!-- DriveWS -1->>- Drive App: [{ full details }] -->
+
+      <!-- Note left of Drive App: Load full item<br>hashes into store -->
+      <!-- Note left of Drive App: Drive contents and<br>hierarchy are<br>synced -->
+

@@ -53,6 +53,7 @@ wss.on('connection', function(ws) {
             parsedMessage.ice ||
             parsedMessage.rpc
         ) {
+            console.log(parsedMessage);
             wss.forward(message);
         }
     });
