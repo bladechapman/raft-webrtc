@@ -1,0 +1,76 @@
+% $ biblatex auxiliary file $
+% $ biblatex bbl format version 2.9 $
+% Do not modify the above lines!
+%
+% This is an auxiliary file used by the 'biblatex' package.
+% This file may safely be deleted. It will be recreated by
+% biber as required.
+%
+\begingroup
+\makeatletter
+\@ifundefined{ver@biblatex.sty}
+  {\@latex@error
+     {Missing 'biblatex' package}
+     {The bibliography requires the 'biblatex' package.}
+      \aftergroup\endinput}
+  {}
+\endgroup
+
+
+\refsection{0}
+  \datalist[entry]{nty/global//global/global}
+    \entry{webrtcwebsite}{online}{}
+      \name{author}{1}{}{%
+        {{hash=8b36e9207c24c76e6719268e49201d94}{%
+           family={Google},
+           familyi={G\bibinitperiod}}}%
+      }
+      \strng{namehash}{8b36e9207c24c76e6719268e49201d94}
+      \strng{fullhash}{8b36e9207c24c76e6719268e49201d94}
+      \strng{bibnamehash}{8b36e9207c24c76e6719268e49201d94}
+      \strng{authorbibnamehash}{8b36e9207c24c76e6719268e49201d94}
+      \strng{authornamehash}{8b36e9207c24c76e6719268e49201d94}
+      \strng{authorfullhash}{8b36e9207c24c76e6719268e49201d94}
+      \field{sortinit}{G}
+      \field{sortinithash}{5e8d2bf9d38de41b1528bd307546008f}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{title}{WebRTC}
+      \verb{urlraw}
+      \verb https://webrtc.org
+      \endverb
+      \verb{url}
+      \verb https://webrtc.org
+      \endverb
+    \endentry
+    \entry{raftpaper}{book}{}
+      \name{author}{2}{}{%
+        {{hash=4e158ae7ebeb8c0dfb8e2c85ee126493}{%
+           family={Ongaro},
+           familyi={O\bibinitperiod},
+           given={D.},
+           giveni={D\bibinitperiod}}}%
+        {{hash=8c8c93a31e262d99678be884e2cffce3}{%
+           family={Ousterhout},
+           familyi={O\bibinitperiod},
+           given={J.},
+           giveni={J\bibinitperiod}}}%
+      }
+      \strng{namehash}{0c6a06e59a79055f32ed204b4e34c3d8}
+      \strng{fullhash}{0c6a06e59a79055f32ed204b4e34c3d8}
+      \strng{bibnamehash}{0c6a06e59a79055f32ed204b4e34c3d8}
+      \strng{authorbibnamehash}{0c6a06e59a79055f32ed204b4e34c3d8}
+      \strng{authornamehash}{0c6a06e59a79055f32ed204b4e34c3d8}
+      \strng{authorfullhash}{0c6a06e59a79055f32ed204b4e34c3d8}
+      \field{sortinit}{O}
+      \field{sortinithash}{dad3efd0836470093a7b4a7bb756eb8c}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Proceedings USENIX Annual Technical Conference ATC}
+      \field{title}{In Search of an Understandable Consensus Algorithm}
+      \field{year}{2014}
+    \endentry
+  \enddatalist
+\endrefsection
+\endinput
+

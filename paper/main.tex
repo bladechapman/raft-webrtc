@@ -1,5 +1,7 @@
 \documentclass[11pt,twocolumn]{article}
 \usepackage{graphicx}
+\usepackage{biblatex}
+\addbibresource{main.bib}
 
 \title{Consensus in the Browser using WebRTC}
 \author{Blade Chapman}
@@ -17,12 +19,9 @@ As software products become more collaborative, achieving consensus has become a
 
 However, recent events have sown doubt amongst customers' trust in these centralized entities. Companies whose business models depend on understanding their users thoroughly are not directly incentivized to provide products that protect the privacy and data of their customers.
 
-With this in mind, we set out to explore the trade-offs in pushing the work of achieving consensus to customer devices. Our approach was to choose an existing, well understood consensus algorithm and implement it in a peer-to-peer context. Then, we would use that implementation to build an example customer-facing application to evaluate the performance characteristics of this approach. The result is an implementation of the Raft consensus algorithm that can be run entirely in modern browsers, and a chat application that uses the Raft replicated-state-machine to achieve consensus on chat history.
+With this in mind, we set out to explore the trade-offs in pushing the work of achieving consensus to customer devices. Our approach was to choose an existing, well understood consensus algorithm and implement it in a peer-to-peer context. Then, we would use that implementation to build an example customer-facing application to evaluate the performance characteristics of this approach. The result is an implementation of the Raft \cite{raftpaper} consensus algorithm that can be run entirely in modern browsers, and a chat application that uses the Raft replicated-state-machine to achieve consensus on chat history.
 
 We believe there is significant potential in using less centralized models to build programs that meet expectations while respecting the customer. However, the decentralized approach poses new challenges around performance and predictability that are not typically as challenging in more controlled environments.
-
-TODO: Structure of the paper...
-
 
 \section{Choosing Raft}
 Achieving consensus is a fundamental problem in the space of Distributed Computing. As a result, many distributed consensus algorithms exist, including the pervasive Paxos, Viewstamped Replication, and the newer Proof of Work approach. When considering algorithms for this project, we sought out these characteristics:
@@ -44,7 +43,9 @@ In addition to implementing a consensus algorithm, another primary objective of 
 \end{itemize}
 
 \section{WebRTC}
-TODO: Introduction to WebRTC
+
+WebRTC \cite{webrtcwebsite} (Web Real-Time Communication) is a set of protocols and standards that enable web applications to communicate directly without the need for an intermediate server or browser plugins. As of June 2020, it is supported on all major browsers.
+
 \subsection{Making a Connection}
 The primary challenge in establishing a WebRTC connection is circumventing each peer's individual network conditions. Local area networks, firewalls, and generally unpredictable network configurations can make it difficult to route packets between peers. WebRTC solves this problem by using STUN (Session Traversal of UDP through NAT) servers to gather publicly available routing information, and a relay server to distribute that routing information to peers.
 
@@ -57,12 +58,13 @@ Once connectivity and session information are exchanged, the two peers have all 
 \section{Implementation}
 
 \subsection{Building a Cluster}
-In order for our application to work without each peer having predefined knowledge of each node in the cluster, we designed a simple protocol that allowed peers to discover and connect to each other peer in the cluster as they come online. The protocol defines four messages: "register", "discover", "offer" and "answer".
+In order for our application to work without each peer having predefined knowledge of each node in the cluster, we designed a simple protocol that allowed peers to discover and connect to each other peer in the cluster as they come online. The protocol defines four messages: "register", "discover", "offer" and "answer", as described in Figure \ref{fig:cluster}.
 
 \begin{figure}[h]
     \centering
     \includegraphics[scale=0.32]{cluster}
     \caption{Sequence diagram describing cluster construction}
+    \label{fig:cluster}
 \end{figure}
 
 When a node comes online and seeks to become part of the cluster, it issues a "register" call to our signaling server, which records the node's uuid as well as a socket for future communication with that node.
@@ -84,14 +86,14 @@ To understand the intricacies of the Raft consensus algorithm, we built a from-s
 
 Our specific implementation of Raft includes leadership election, appending entries, and client message forwarding. It does not implement cluster membership changes or log compaction.
 
-A brief note on understandability: The primary objective of the Raft paper is to provide an understandable consensus algorithm. TODO...
-
 \subsection{Chat Application}
-To evaluate our implementation of Raft, we built a chat application that uses a replicated state machine to maintain chat history. One can imagine this to be useful, as inconsistent chat histories can lead to confusion amongst members of the chat. TODO...
+To evaluate our implementation of Raft, we built a chat application that uses a replicated state machine to maintain chat history. One can envision this to be useful, as inconsistent chat histories can lead to confusion amongst participants.
+
+Each client's chat history is comprised of only the committed entries in the log. Therefore, if a client becomes separated from the cluster, it will no longer be able to make progress on the log and any attempt to send messages will not be committed. If an offline client comes back online, any log entries committed by the rest of the cluster in the meantime will be replicated and the client will once again be able to send messages, as long as the cluster has quorum.
 
 \section{Challenges}
 
-\subsection{Latency}
+\subsection{Scalability}
 To evaluate the latency of our implementation, we utilized Google's Puppeteer browser automation tooling to simulate Raft followers sending append RPCs sequentially for a span of 10 seconds. Measuring the number of sequential messages committed while varying the cluster size provided insight into how the implementation scales with larger clusters. We conducted 10 trials for each cluster size.\\
 
 \begin{figure}[t]
@@ -121,13 +123,9 @@ For these reasons, future additional work may want to evaluate the feasibility o
 
 
 \section{Conclusion}
-"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+TODO
 
-\section{Related Work}
-"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
-
-\section{Acknowledgements}
-"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+\printbibliography
 
 
 \end{document}
