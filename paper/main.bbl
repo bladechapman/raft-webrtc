@@ -19,6 +19,30 @@
 
 \refsection{0}
   \datalist[entry]{nty/global//global/global}
+    \entry{puppeteerwebsite}{online}{}
+      \name{author}{1}{}{%
+        {{hash=8b36e9207c24c76e6719268e49201d94}{%
+           family={Google},
+           familyi={G\bibinitperiod}}}%
+      }
+      \strng{namehash}{8b36e9207c24c76e6719268e49201d94}
+      \strng{fullhash}{8b36e9207c24c76e6719268e49201d94}
+      \strng{bibnamehash}{8b36e9207c24c76e6719268e49201d94}
+      \strng{authorbibnamehash}{8b36e9207c24c76e6719268e49201d94}
+      \strng{authornamehash}{8b36e9207c24c76e6719268e49201d94}
+      \strng{authorfullhash}{8b36e9207c24c76e6719268e49201d94}
+      \field{sortinit}{G}
+      \field{sortinithash}{5e8d2bf9d38de41b1528bd307546008f}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{title}{Puppeteer}
+      \verb{urlraw}
+      \verb https://pptr.dev
+      \endverb
+      \verb{url}
+      \verb https://pptr.dev
+      \endverb
+    \endentry
     \entry{webrtcwebsite}{online}{}
       \name{author}{1}{}{%
         {{hash=8b36e9207c24c76e6719268e49201d94}{%
@@ -42,6 +66,136 @@
       \verb{url}
       \verb https://webrtc.org
       \endverb
+    \endentry
+    \entry{paxospaper}{book}{}
+      \name{author}{1}{}{%
+        {{hash=412835fb09a0654335720ae8ef51bf5d}{%
+           family={Lamport},
+           familyi={L\bibinitperiod},
+           given={L.},
+           giveni={L\bibinitperiod}}}%
+      }
+      \strng{namehash}{412835fb09a0654335720ae8ef51bf5d}
+      \strng{fullhash}{412835fb09a0654335720ae8ef51bf5d}
+      \strng{bibnamehash}{412835fb09a0654335720ae8ef51bf5d}
+      \strng{authorbibnamehash}{412835fb09a0654335720ae8ef51bf5d}
+      \strng{authornamehash}{412835fb09a0654335720ae8ef51bf5d}
+      \strng{authorfullhash}{412835fb09a0654335720ae8ef51bf5d}
+      \field{sortinit}{L}
+      \field{sortinithash}{2c7981aaabc885868aba60f0c09ee20f}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{ACM SIGACT News}
+      \field{title}{Paxos made simple}
+      \field{year}{2001}
+    \endentry
+    \entry{pbftpaper}{book}{}
+      \name{author}{2}{}{%
+        {{hash=b1494ebac3e3ba9c4b5cdfdc27462d1a}{%
+           family={Liskov},
+           familyi={L\bibinitperiod},
+           given={B.},
+           giveni={B\bibinitperiod}}}%
+        {{hash=7219ccffadd287f9639844df1ca4c706}{%
+           family={Castro},
+           familyi={C\bibinitperiod},
+           given={M.},
+           giveni={M\bibinitperiod}}}%
+      }
+      \strng{namehash}{f62027a066d030c005e755d7711e6228}
+      \strng{fullhash}{f62027a066d030c005e755d7711e6228}
+      \strng{bibnamehash}{f62027a066d030c005e755d7711e6228}
+      \strng{authorbibnamehash}{f62027a066d030c005e755d7711e6228}
+      \strng{authornamehash}{f62027a066d030c005e755d7711e6228}
+      \strng{authorfullhash}{f62027a066d030c005e755d7711e6228}
+      \field{sortinit}{L}
+      \field{sortinithash}{2c7981aaabc885868aba60f0c09ee20f}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{ACM Transactions on Computer Systems}
+      \field{title}{Practical Byzantine fault tolerance and proactive recovery}
+      \field{year}{2002}
+    \endentry
+    \entry{honeybadgerpaper}{book}{}
+      \name{author}{2}{}{%
+        {{hash=cffa6c92041d77f861ee34c3171fe301}{%
+           family={Miller},
+           familyi={M\bibinitperiod},
+           given={A.},
+           giveni={A\bibinitperiod}}}%
+        {{hash=69b38345070d0a3b547b7ed3ab988a7a}{%
+           family={Xia},
+           familyi={X\bibinitperiod},
+           given={Y.},
+           giveni={Y\bibinitperiod}}}%
+      }
+      \strng{namehash}{d86d682519889eb648c6496b6da5fbf0}
+      \strng{fullhash}{d86d682519889eb648c6496b6da5fbf0}
+      \strng{bibnamehash}{d86d682519889eb648c6496b6da5fbf0}
+      \strng{authorbibnamehash}{d86d682519889eb648c6496b6da5fbf0}
+      \strng{authornamehash}{d86d682519889eb648c6496b6da5fbf0}
+      \strng{authorfullhash}{d86d682519889eb648c6496b6da5fbf0}
+      \field{sortinit}{M}
+      \field{sortinithash}{cfd219b90152c06204fab207bc6c7cab}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Proceedings of the 23rd ACM Conference on Computer and Communications Security (CCS)}
+      \field{title}{The Honey Badger of BFT protocols}
+      \field{year}{2016}
+    \endentry
+    \entry{powpaper}{book}{}
+      \name{author}{1}{}{%
+        {{hash=8eb5688f293b940f446dc012b966fe44}{%
+           family={Nakamoto},
+           familyi={N\bibinitperiod},
+           given={S.},
+           giveni={S\bibinitperiod}}}%
+      }
+      \strng{namehash}{8eb5688f293b940f446dc012b966fe44}
+      \strng{fullhash}{8eb5688f293b940f446dc012b966fe44}
+      \strng{bibnamehash}{8eb5688f293b940f446dc012b966fe44}
+      \strng{authorbibnamehash}{8eb5688f293b940f446dc012b966fe44}
+      \strng{authornamehash}{8eb5688f293b940f446dc012b966fe44}
+      \strng{authorfullhash}{8eb5688f293b940f446dc012b966fe44}
+      \field{sortinit}{N}
+      \field{sortinithash}{f7242c3ed3dc50029fca1be76c497c7c}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{title}{Bitcoin: A peer-to-peer electronic cash system}
+      \field{year}{2008}
+      \verb{urlraw}
+      \verb http://bitcoin.org/bitcoin.pdf
+      \endverb
+      \verb{url}
+      \verb http://bitcoin.org/bitcoin.pdf
+      \endverb
+    \endentry
+    \entry{vsrpaper}{book}{}
+      \name{author}{2}{}{%
+        {{hash=7bca1a01f839ce05865d467826a1a004}{%
+           family={Oki},
+           familyi={O\bibinitperiod},
+           given={B.\bibnamedelimi M.},
+           giveni={B\bibinitperiod\bibinitdelim M\bibinitperiod}}}%
+        {{hash=db55d7189e48310e7e95ade7c1b8823d}{%
+           family={Liskov},
+           familyi={L\bibinitperiod},
+           given={B.\bibnamedelimi H.},
+           giveni={B\bibinitperiod\bibinitdelim H\bibinitperiod}}}%
+      }
+      \strng{namehash}{e4fc2d6b2a98d156e2dd828f395e2494}
+      \strng{fullhash}{e4fc2d6b2a98d156e2dd828f395e2494}
+      \strng{bibnamehash}{e4fc2d6b2a98d156e2dd828f395e2494}
+      \strng{authorbibnamehash}{e4fc2d6b2a98d156e2dd828f395e2494}
+      \strng{authornamehash}{e4fc2d6b2a98d156e2dd828f395e2494}
+      \strng{authorfullhash}{e4fc2d6b2a98d156e2dd828f395e2494}
+      \field{sortinit}{O}
+      \field{sortinithash}{dad3efd0836470093a7b4a7bb756eb8c}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Pric. PODC'88, ACM Symposium on Principles of Distributed Computing}
+      \field{title}{Viewstamped replication: A new primary copy method to support highly available distributed systems}
+      \field{year}{1988}
     \endentry
     \entry{raftpaper}{book}{}
       \name{author}{2}{}{%
