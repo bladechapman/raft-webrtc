@@ -75,6 +75,9 @@
            given={L.},
            giveni={L\bibinitperiod}}}%
       }
+      \list{publisher}{1}{%
+        {ACM SIGACT News}%
+      }
       \strng{namehash}{412835fb09a0654335720ae8ef51bf5d}
       \strng{fullhash}{412835fb09a0654335720ae8ef51bf5d}
       \strng{bibnamehash}{412835fb09a0654335720ae8ef51bf5d}
@@ -85,7 +88,6 @@
       \field{sortinithash}{2c7981aaabc885868aba60f0c09ee20f}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
-      \field{journaltitle}{ACM SIGACT News}
       \field{title}{Paxos made simple}
       \field{year}{2001}
     \endentry
@@ -102,6 +104,9 @@
            given={M.},
            giveni={M\bibinitperiod}}}%
       }
+      \list{publisher}{1}{%
+        {ACM Transactions on Computer Systems}%
+      }
       \strng{namehash}{f62027a066d030c005e755d7711e6228}
       \strng{fullhash}{f62027a066d030c005e755d7711e6228}
       \strng{bibnamehash}{f62027a066d030c005e755d7711e6228}
@@ -112,7 +117,6 @@
       \field{sortinithash}{2c7981aaabc885868aba60f0c09ee20f}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
-      \field{journaltitle}{ACM Transactions on Computer Systems}
       \field{title}{Practical Byzantine fault tolerance and proactive recovery}
       \field{year}{2002}
     \endentry
@@ -129,6 +133,10 @@
            given={Y.},
            giveni={Y\bibinitperiod}}}%
       }
+      \list{publisher}{2}{%
+        {Proceedings of the 23rd ACM Conference on Computer}%
+        {Communications Security (CCS)}%
+      }
       \strng{namehash}{d86d682519889eb648c6496b6da5fbf0}
       \strng{fullhash}{d86d682519889eb648c6496b6da5fbf0}
       \strng{bibnamehash}{d86d682519889eb648c6496b6da5fbf0}
@@ -139,7 +147,6 @@
       \field{sortinithash}{cfd219b90152c06204fab207bc6c7cab}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
-      \field{journaltitle}{Proceedings of the 23rd ACM Conference on Computer and Communications Security (CCS)}
       \field{title}{The Honey Badger of BFT protocols}
       \field{year}{2016}
     \endentry
@@ -183,6 +190,9 @@
            given={B.\bibnamedelimi H.},
            giveni={B\bibinitperiod\bibinitdelim H\bibinitperiod}}}%
       }
+      \list{publisher}{1}{%
+        {Pric. PODC'88, ACM Symposium on Principles of Distributed Computing}%
+      }
       \strng{namehash}{e4fc2d6b2a98d156e2dd828f395e2494}
       \strng{fullhash}{e4fc2d6b2a98d156e2dd828f395e2494}
       \strng{bibnamehash}{e4fc2d6b2a98d156e2dd828f395e2494}
@@ -193,7 +203,6 @@
       \field{sortinithash}{dad3efd0836470093a7b4a7bb756eb8c}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
-      \field{journaltitle}{Pric. PODC'88, ACM Symposium on Principles of Distributed Computing}
       \field{title}{Viewstamped replication: A new primary copy method to support highly available distributed systems}
       \field{year}{1988}
     \endentry
@@ -210,6 +219,9 @@
            given={J.},
            giveni={J\bibinitperiod}}}%
       }
+      \list{publisher}{1}{%
+        {Proceedings USENIX Annual Technical Conference ATC}%
+      }
       \strng{namehash}{0c6a06e59a79055f32ed204b4e34c3d8}
       \strng{fullhash}{0c6a06e59a79055f32ed204b4e34c3d8}
       \strng{bibnamehash}{0c6a06e59a79055f32ed204b4e34c3d8}
@@ -220,7 +232,6 @@
       \field{sortinithash}{dad3efd0836470093a7b4a7bb756eb8c}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
-      \field{journaltitle}{Proceedings USENIX Annual Technical Conference ATC}
       \field{title}{In Search of an Understandable Consensus Algorithm}
       \field{year}{2014}
     \endentry

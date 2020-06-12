@@ -1,11 +1,11 @@
 # Fdb version 3
-["biber main"] 1591927203 "main.bcf" "main.bbl" "main" 1591927274
-  "main.bcf" 1591927274 90879 53706b3d871ccf86ba7fd573e0f21803 ""
-  "main.bib" 1591914947 1448 aa9ba14b67b28c1ef4ffab86b5988086 ""
+["biber main"] 1591927728 "main.bcf" "main.bbl" "main" 1591928586
+  "main.bcf" 1591928586 90879 53706b3d871ccf86ba7fd573e0f21803 ""
+  "main.bib" 1591927722 1458 49ff35d76a5681bb42d9538d5095ac54 ""
   (generated)
-  "main.bbl"
   "main.blg"
-["pdflatex"] 1591927273 "main.tex" "main.pdf" "main" 1591927274
+  "main.bbl"
+["pdflatex"] 1591928585 "main.tex" "main.pdf" "main" 1591928586
   "/usr/local/texlive/2018/texmf-dist/fonts/map/fontname/texfonts.map" 1511824771 3332 103109f5612ad95229751940c61aada0 ""
   "/usr/local/texlive/2018/texmf-dist/fonts/tfm/public/cm/cmbx10.tfm" 1480098701 1328 c834bbb027764024c09d3d2bf908b5f0 ""
   "/usr/local/texlive/2018/texmf-dist/fonts/tfm/public/cm/cmbx12.tfm" 1480098701 1324 c910af8c371558dc20f2d7822f66fe64 ""
@@ -76,14 +76,14 @@
   "/usr/local/texlive/2018/texmf-var/web2c/pdftex/pdflatex.fmt" 1523934516 4220280 10cab8fbd7c5a7c52aba9917e190d018 ""
   "/usr/local/texlive/2018/texmf.cnf" 1523934483 577 0b39adfd7c93507ff20c9c14c2f1a33f ""
   "cluster.png" 1591846332 165920 0729c26adc5f83cd6496caac6d1aa9dc ""
-  "main.aux" 1591927274 3898 bd5a5459107f76d00031c684717f1cad ""
-  "main.bbl" 1591927205 9011 71b695fc62e24d60ed184f6ca95e580b "biber main"
-  "main.run.xml" 1591927274 2299 81988d3303a58f7ac525483192dfa2a1 ""
-  "main.tex" 1591927268 16766 c79d8809fcbcd980885cf8719b331221 ""
+  "main.aux" 1591928586 3898 bd5a5459107f76d00031c684717f1cad ""
+  "main.bbl" 1591927730 9113 163e4500b7e7b7c4066d8b3f7763f74d "biber main"
+  "main.run.xml" 1591928586 2299 81988d3303a58f7ac525483192dfa2a1 ""
+  "main.tex" 1591928580 16800 7c37dcae1efc1121bed72a56e0826989 ""
   "performance.png" 1591845042 154649 d28721bdd55c2a6e21369debc2e8b304 ""
   (generated)
-  "main.pdf"
-  "main.run.xml"
-  "main.aux"
   "main.bcf"
+  "main.aux"
   "main.log"
+  "main.run.xml"
+  "main.pdf"

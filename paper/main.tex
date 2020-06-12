@@ -50,7 +50,7 @@ WebRTC \cite{webrtcwebsite} (Web Real-Time Communication) is a set of protocols 
 \subsection{Making a Connection}
 The primary challenge in establishing a WebRTC connection is circumventing each peer's individual network conditions. Local area networks, firewalls, and generally unpredictable network configurations can make it difficult to route packets between peers. WebRTC solves this problem by using STUN (Session Traversal of UDP through NAT) servers to gather publicly available routing information, and a relay server to distribute that routing information to peers.
 
-When a peer seeks to establish an WebRTC connection, it first gathers information on how other peers may route packets to it. This information, known as an ICE (Interactive Connectivity Establishment) candidate, is then sent to the target peer via the known relay server. Upon receiving an ICE candidate, the receiving peer registers that information, seeks out its own ICE candidates, and relays them back to the sending peer. At this point, both peers have the necessary knowledge to establish a direct peer-to-peer connection.
+When a peer seeks to establish a WebRTC connection, it first gathers information on how other peers may route packets to it. This information, known as an ICE (Interactive Connectivity Establishment) candidate, is then sent to the target peer via the known relay server. Upon receiving an ICE candidate, the receiving peer registers that information, seeks out its own ICE candidates, and relays them back to the sending peer. At this point, both peers have the necessary knowledge to establish a direct peer-to-peer connection.
 
 In addition to the connectivity information, the initiating peer must also relay information as to what kind of channel to establish. WebRTC currently supports audio, video, and arbitrary data channels. For our Raft implementation, we opted to use the data channel and send packets between peers as stringified JSON. This information is encapsulated as an SDP (Session Descriptor Protocol) message and offered from the initiating peer to the receiving peer via the relay server. The receiving peer then creates its own answering SDP and responds to the sending peer, again using the relay server.
 
@@ -72,7 +72,7 @@ When a node comes online and seeks to become part of the cluster, it issues a \t
 
 Every time a new node becomes registered, our signaling server broadcasts a \textit{discover} message to every registered node prior to that point with the uuid of the newly registered node.
 
-Upon receiving a \textit{discover} message from the signaling server, the node then creates an SDP and forwards that via the signaling server to each newly discovered node.
+Upon receiving a \textit{discover} message from the signaling server, the receiving node then creates an \textit{offer} containing its SDP and forwards that via the signaling server to each newly discovered node.
 
 Finally, upon receiving an \textit{offer} message from the signaling server, the receiving node forwards an \textit{answer} message along with its own SDP via the signaling server to the originator of the \textit{offer} message. At this point, every node in the cluster has the necessary information to establish peer to peer connections with each other and we can begin our Raft session.
 
@@ -109,7 +109,7 @@ To evaluate the latency of our implementation, we utilized Google's Puppeteer \c
 We observed that the latency of the system degraded rapidly with an increase in cluster size before beginning to stabilize. To some degree, this is to be expected, as larger clusters require more messages to be sent between peers before log entries can be committed. However, we believe that the degraded performance with cluster size also reflects current browsers' limitations around maintaining large numbers of RTC connections.
 
 \subsection{Byzantine Fault Tolerance}
-Raft is not a byzantine fault tolerant consensus algorithm. However, the nature of achieving consensus in a user's browser exposes the algorithm to attacks from untrusted parties. While this can be mitigated with digital signing of RPCs, the cryptographic operations necessary would noticeably affect the latency of the system, as web browsers are still developing performant support for cryptography.
+Raft is not a byzantine fault tolerant consensus algorithm. However, the nature of achieving consensus in a user's browser exposes the system to attacks from untrusted parties. While this can be mitigated with digital signing of RPCs, the cryptographic operations necessary would noticeably affect the latency of the system, as web browsers are still developing performant support for cryptography.
 
 For these reasons, future additional work may want to evaluate the feasibility of byzantine fault tolerant algorithms in the browser context. Practical Byzantine Fault Tolerance (PBFT) \cite{pbftpaper} demonstrates byzantine fault tolerance with acceptable latency numbers for an application requiring responsiveness, such as chat. However, PBFT still relies on a concept of weak synchrony in which the network latency does not increase exponentially. This weak synchrony may not necessarily hold in less predictable environments as described in section 6.3.
 
